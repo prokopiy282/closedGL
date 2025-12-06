@@ -1,10 +1,15 @@
 ﻿#include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 
 #include <iostream>
 #include <fstream>
 #include <string>
 #include <sstream>
+#include <chrono>
 
 enum meshState : int {
     SQUARE = 0,
@@ -77,7 +82,7 @@ int main()
     }
     else {
         std::cout << "vertex shader file import failed" << std::endl;
-        return;
+        return -1;
     }
     std::stringstream vertexbuffer;
     vertexbuffer << vertexShaderFile.rdbuf();
@@ -93,7 +98,7 @@ int main()
     }
     else {
         std::cout << "fragment shader file import failed" << std::endl;
-        return;
+        return -1;
     }
     std::stringstream fragmentbuffer;
     fragmentbuffer << fragmentShaderFile.rdbuf();
