@@ -12,6 +12,9 @@
 #include <chrono>
 #include <cmath>
 
+#define FLOAT_SIZE 64
+#define INT_SIZE 64
+
 enum meshState : int {
     SQUARE = 0,
     TRIANGLE = 1,
@@ -29,6 +32,8 @@ meshState& operator++(meshState& state) {
 
 enum meshState shape = SQUARE;
 
+
+
 void processInput(GLFWwindow* window) {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
         glfwSetWindowShouldClose(window, true);
@@ -38,17 +43,7 @@ void processInput(GLFWwindow* window) {
     }
 };
 
-float vertices[] = { 
-     0.5f, 0.5f, 0.0f,
-     0.5f,-0.5f, 0.0f,
-    -0.5f,-0.5f, 0.0f,
-    -0.5f, 0.5f, 0.0f,
-};
 
-unsigned int indices[] = {
-    0,1,3,
-    1,2,3
-};
 
 void makeVAO(unsigned int* vao, unsigned int* vbo, unsigned int* ebo, float* vertices, unsigned int* indices) {
 
@@ -64,7 +59,7 @@ void makeVAO(unsigned int* vao, unsigned int* vbo, unsigned int* ebo, float* ver
 
     glGenBuffers(1, vbo);
     glBindBuffer(GL_ARRAY_BUFFER, *vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, FLOAT_SIZE, vertices, GL_STATIC_DRAW);
 
     std::cout << "vbo int: " << *vbo << std::endl;
     if (glGetError() == GL_NO_ERROR) {
@@ -74,7 +69,7 @@ void makeVAO(unsigned int* vao, unsigned int* vbo, unsigned int* ebo, float* ver
 
     glGenBuffers(1, ebo);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, *ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, INT_SIZE, indices, GL_STATIC_DRAW);
 
     std::cout << "ebo int: " << *ebo << std::endl;
     if (glGetError() == GL_NO_ERROR) {
@@ -89,7 +84,7 @@ void makeVAO(unsigned int* vao, unsigned int* vbo, unsigned int* ebo, float* ver
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     if (glGetError() == GL_NO_ERROR) {
-        std::cout << "vertex  attrips pointed without error" << std::endl;
+        std::cout << "vertex attrips pointed without error" << std::endl;
     }
 
 }
@@ -155,6 +150,19 @@ int main()
 
 
     glViewport(0, 0, windowWidth, windowHeight);
+
+
+    float vertices[] = {
+     0.5f, 0.5f, 0.0f,
+     0.5f,-0.5f, 0.0f,
+    -0.5f,-0.5f, 0.0f,
+    -0.5f, 0.5f, 0.0f,
+    };
+
+    unsigned int indices[] = {
+        0,1,3,
+        1,2,3
+    };
 
     unsigned int vao = 0;
     unsigned int vbo = 0;
