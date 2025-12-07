@@ -10,6 +10,7 @@
 #include <string>
 #include <sstream>
 #include <chrono>
+#include <cmath>
 
 enum meshState : int {
     SQUARE = 0,
@@ -49,6 +50,9 @@ unsigned int indices[] = {
     1,2,3
 };
 
+void makeVAO(unsigned int vao, unsigned int vbo, unsigned int ebo, float* vertices, unsigned int* indices) {
+
+}
 
 int main()
 {
@@ -187,27 +191,47 @@ int main()
         std::cout << "\n" << log << std::endl;
     }
 
-
-    int uniform_WindowSize = glGetUniformLocation(shaderProgram, "WindowSize");
-    glUniform2f(uniform_WindowSize, windowWidth, windowHeight);
-
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
 
-    
+    static int uniform_windowSize = glGetUniformLocation(shaderProgram, "windowSize");
+    glUniform2f(uniform_windowSize, windowWidth, windowHeight);
+
+    float shaderTime = 0.0f; //TODO: add deltatime. also maybe a 32 bit float is a bit wasteful to store ints
+    int uniform_shaderTime = glGetUniformLocation(shaderProgram, "shaderTime");
+    glUniform1f(uniform_shaderTime, shaderTime);
+
+    static float gammaCorrection = 0.45f; //2.2 gamma my beloved
+    int uniform_gammaCorrection = glGetUniformLocation(shaderProgram, "gammaCorrection");
+    glUniform1f(uniform_gammaCorrection, gammaCorrection);
+
+    static float temporalResolution = 64.0f; //maybe casts IN the shader are not a good idea. also does deltatime if equal to fps
+    int uniform_temporalResolution = glGetUniformLocation(shaderProgram, "temporalResolution");
+    glUniform1f(uniform_temporalResolution, temporalResolution);
 
 
+    auto lastTime = std::chrono::system_clock::now();
 
+
+    glBindVertexArray(vao);
 
     while (!glfwWindowShouldClose(window)) {
 
+        shaderTime++;
+        glUniform1f(uniform_shaderTime, shaderTime);
+
+        if (std::remainder(shaderTime, temporalResolution) == 0) {
+            auto currentTime = std::chrono::system_clock::now();
+            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastTime);
+            std::cout << "fps is:" << (temporalResolution/(elapsed.count()/1000.0f)) << std::endl;
+            std::cout << "ms elapsed:" << elapsed.count() << std::endl;//why is it going up
+            lastTime = currentTime;
+        }
 
         glClearColor(1.0f, 0.5f, 0.5f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        glBindVertexArray(vao);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-        glBindVertexArray(0);
 
         glfwSwapBuffers(window);
 
