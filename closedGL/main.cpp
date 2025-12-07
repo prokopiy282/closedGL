@@ -50,7 +50,47 @@ unsigned int indices[] = {
     1,2,3
 };
 
-void makeVAO(unsigned int vao, unsigned int vbo, unsigned int ebo, float* vertices, unsigned int* indices) {
+void makeVAO(unsigned int* vao, unsigned int* vbo, unsigned int* ebo, float* vertices, unsigned int* indices) {
+
+    glGenVertexArrays(1, vao);
+    glBindVertexArray(*vao);
+    glEnableVertexAttribArray(0);
+
+    std::cout << "vao int: " << *vao << std::endl;
+    if (glGetError() == GL_NO_ERROR) {
+        std::cout << "vao created without error" << std::endl;
+    }
+
+
+    glGenBuffers(1, vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, *vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    std::cout << "vbo int: " << *vbo << std::endl;
+    if (glGetError() == GL_NO_ERROR) {
+        std::cout << "vbo created without error" << std::endl;
+    }
+
+
+    glGenBuffers(1, ebo);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, *ebo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+    std::cout << "ebo int: " << *ebo << std::endl;
+    if (glGetError() == GL_NO_ERROR) {
+        std::cout << "ebo created without error" << std::endl;
+    }
+
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+    glEnableVertexAttribArray(0);
+    glBindVertexArray(0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    if (glGetError() == GL_NO_ERROR) {
+        std::cout << "vertex  attrips pointed without error" << std::endl;
+    }
 
 }
 
@@ -116,33 +156,23 @@ int main()
 
     glViewport(0, 0, windowWidth, windowHeight);
 
-    unsigned int vao;
-    glGenVertexArrays(1, &vao);
-    glBindVertexArray(vao);
-    glEnableVertexAttribArray(0);
+    unsigned int vao = 0;
+    unsigned int vbo = 0;
+    unsigned int ebo = 0;
+    unsigned int* vaoPtr = &vao;
+    unsigned int* vboPtr = &vbo;
+    unsigned int* eboPtr = &ebo;
 
-    unsigned int vbo;
-    glGenBuffers(1, &vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    makeVAO(vaoPtr, vboPtr, eboPtr, vertices, indices);
 
-    unsigned int ebo;
-    glGenBuffers(1, &ebo);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-    
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
-    glEnableVertexAttribArray(0);
-    glBindVertexArray(0);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    std::cout << "vao int: " << vao << std::endl;
+    std::cout << "vbo int: " << vbo << std::endl;
+    std::cout << "ebo int: " << ebo << std::endl;
 
     int logLength = 0;
     const int maxlogLength = 90;
     char* log = new char[maxlogLength];
     int itLives;
-
 
     unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
@@ -201,19 +231,22 @@ int main()
     int uniform_shaderTime = glGetUniformLocation(shaderProgram, "shaderTime");
     glUniform1f(uniform_shaderTime, shaderTime);
 
-    static float gammaCorrection = 0.45f; //2.2 gamma my beloved
+    const float gammaCorrection = 0.45f; //2.2 gamma my beloved
     int uniform_gammaCorrection = glGetUniformLocation(shaderProgram, "gammaCorrection");
     glUniform1f(uniform_gammaCorrection, gammaCorrection);
 
-    static float temporalResolution = 64.0f; //maybe casts IN the shader are not a good idea. also does deltatime if equal to fps
+    const float temporalResolution = 64.0f; //maybe casts IN the shader are not a good idea. also does deltatime if equal to fps
     int uniform_temporalResolution = glGetUniformLocation(shaderProgram, "temporalResolution");
     glUniform1f(uniform_temporalResolution, temporalResolution);
+
 
 
     auto lastTime = std::chrono::system_clock::now();
 
 
     glBindVertexArray(vao);
+
+
 
     while (!glfwWindowShouldClose(window)) {
 
