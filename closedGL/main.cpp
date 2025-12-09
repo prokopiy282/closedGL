@@ -15,6 +15,7 @@
 #define FLOAT_SIZE 64
 #define INT_SIZE 64
 
+
 enum meshState : int {
     SQUARE = 0,
     TRIANGLE = 1,
@@ -29,9 +30,7 @@ meshState& operator++(meshState& state) {
     return state;
 }
 
-
 enum meshState shape = SQUARE;
-
 
 
 void processInput(GLFWwindow* window) {
@@ -42,7 +41,6 @@ void processInput(GLFWwindow* window) {
         ++shape;
     }
 };
-
 
 
 void makeVAO(unsigned int* vao, unsigned int* vbo, unsigned int* ebo, float* vertices, unsigned int* indices) {
@@ -89,6 +87,52 @@ void makeVAO(unsigned int* vao, unsigned int* vbo, unsigned int* ebo, float* ver
 
 }
 
+//shader type is only for debug purposes, leave empty str if you dont care. r and i values wont stop being a bane of my existence
+std::string getShaderSource(const char* path, std::string shaderType) {
+
+    std::ifstream ShaderFile(path);
+
+    if (ShaderFile) {
+        std::cout << shaderType << " shader file imported succesfully" << std::endl;
+    }
+    else {
+        std::cout << shaderType << " shader file import failed" << std::endl;
+        return "";
+    }
+
+    std::stringstream buffer;
+    buffer << ShaderFile.rdbuf();
+    std::string ShaderString = buffer.str();
+
+    ShaderFile.close();
+
+    std::cout << shaderType << " shader: \n" << ShaderString << std::endl;
+
+    return ShaderString;
+}
+
+template <class dataType>
+void importArray(const char* path, dataType* array, int* size, std::string consoleName) {
+
+    std::ifstream arrayFile(path);
+
+    if (arrayFile) {
+        std::cout << consoleName << " array file imported succesfully" << std::endl;
+    }
+    else {
+        std::cout << consoleName << "array file import failed" << std::endl;
+        return "";
+    }
+
+    std::stringstream buffer;
+    buffer << arrayFile.rdbuf();
+    std::string ShaderString = buffer.str();
+
+    arrayFile.close();
+
+}
+
+
 int main()
 {
     glfwInit();
@@ -115,42 +159,14 @@ int main()
     }
 
 
-    std::ifstream vertexShaderFile("vertex.vert"); 
-    if (vertexShaderFile) {
-        std::cout << "vertex shader file imported succesfully" << std::endl;
-    }
-    else {
-        std::cout << "vertex shader file import failed" << std::endl;
-        return -1;
-    }
-    std::stringstream vertexbuffer;
-    vertexbuffer << vertexShaderFile.rdbuf();
-    std::string vertexShaderString = vertexbuffer.str();
-    const char* vertexShaderSource = vertexShaderString.c_str();
-    vertexShaderFile.close();
-    std::cout << "vertex shader: \n" << vertexShaderSource << std::endl;
+    std::string vertexShaderSourceString = getShaderSource("vertex.vert", "vertex");
+    const char* vertexShaderSource = vertexShaderSourceString.c_str();
 
-
-    std::ifstream fragmentShaderFile("fragment.frag");
-    if (fragmentShaderFile) {
-        std::cout << "fragment shader file imported succesfully" << std::endl;
-    }
-    else {
-        std::cout << "fragment shader file import failed" << std::endl;
-        return -1;
-    }
-    std::stringstream fragmentbuffer;
-    fragmentbuffer << fragmentShaderFile.rdbuf();
-    std::string fragmentShaderString = fragmentbuffer.str();
-    const char* fragmentShaderSource = fragmentShaderString.c_str();
-    fragmentShaderFile.close();
-    std::cout << "fragment shader: \n" << fragmentShaderSource << std::endl;
-
-
+    std::string fragmentShaderSourceString = getShaderSource("fragment.frag", "fragment");
+    const char* fragmentShaderSource = fragmentShaderSourceString.c_str();
 
 
     glViewport(0, 0, windowWidth, windowHeight);
-
 
     float vertices[] = {
      0.5f, 0.5f, 0.0f,
@@ -232,6 +248,8 @@ int main()
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
 
+
+    //TODO: shader sets
     static int uniform_windowSize = glGetUniformLocation(shaderProgram, "windowSize");
     glUniform2f(uniform_windowSize, windowWidth, windowHeight);
 
