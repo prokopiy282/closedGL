@@ -8,12 +8,14 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <string_view>
 #include <sstream>
 #include <chrono>
 #include <cmath>
 
 #define FLOAT_SIZE 64
 #define INT_SIZE 64
+#define BYTE_ORDER_MARK "\xEF \xBB \xBF"
 
 
 enum meshState : int {
@@ -111,7 +113,7 @@ std::string getShaderSource(const char* path, std::string shaderType) {
     return ShaderString;
 }
 
-template <class dataType>
+template <class dataType> //TODO: this is bad and horrible and is an afront to god himself
 void importArray(const char* path, dataType* array, int* size, std::string consoleName) {
 
     std::ifstream arrayFile(path);
@@ -121,14 +123,22 @@ void importArray(const char* path, dataType* array, int* size, std::string conso
     }
     else {
         std::cout << consoleName << "array file import failed" << std::endl;
-        return "";
+        return;
     }
 
     std::stringstream buffer;
     buffer << arrayFile.rdbuf();
-    std::string ShaderString = buffer.str();
+    std::string arrayString = buffer.str();
 
     arrayFile.close();
+
+    std::string_view firstThreeBytes = std::string_view(arrayString).substr(0, 3);
+    if (firstThreeBytes == BYTE_ORDER_MARK) {
+        arrayString.erase(0, 3);
+    }
+
+    auto it = arrayString.begin();
+    
 
 }
 
