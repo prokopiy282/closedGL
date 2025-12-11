@@ -14,9 +14,9 @@
 #include <chrono>
 #include <cmath>
 
-#define FLOAT_SIZE 64
-#define INT_SIZE 64
-#define BYTE_ORDER_MARK "\xEF \xBB \xBF"
+#define INT_SIZE 4
+#define FLOAT_SIZE 4
+#define BYTE_ORDER_MARK "\xEF\xBB\xBF"
 
 
 enum meshState : int {
@@ -44,7 +44,9 @@ struct VAOobject {
         vboPtr(&vbo),
         eboPtr(&ebo),
         vertices(nullptr),
-        indices(nullptr){
+        indices(nullptr),
+        verticesSize(0),
+        indicesSize(0){
     }
 
     unsigned int vao = 0;
@@ -55,6 +57,8 @@ struct VAOobject {
     unsigned int* eboPtr = &ebo;
     float* vertices;
     unsigned int* indices;
+    size_t verticesSize;
+    size_t indicesSize;
 };
 
 void processInput(GLFWwindow* window) {
@@ -111,7 +115,9 @@ void importArray(const char* path, std::vector<dataType>& array, std::string con
             }
 
             array.push_back(static_cast<dataType>(std::atof(temporaryString.c_str())));
-            temporaryString.clear();
+            //std::cout << "string: " << temporaryString << std::endl;
+            //std::cout << "vector: " << array[array.size()-1] << std::endl;
+            temporaryString = "";
             continue;
         }
 
@@ -120,7 +126,8 @@ void importArray(const char* path, std::vector<dataType>& array, std::string con
 
 }
 
-void makeVAO(unsigned int* vao, unsigned int* vbo, unsigned int* ebo, float* vertices, unsigned int* indices) {
+//yeah... TODO:refactor
+void makeVAO(unsigned int* vao, unsigned int* vbo, unsigned int* ebo, float* vertices, unsigned int* indices, size_t verticesSize, size_t indicesSize) {
 
     glGenVertexArrays(1, vao);
     glBindVertexArray(*vao);
@@ -134,7 +141,7 @@ void makeVAO(unsigned int* vao, unsigned int* vbo, unsigned int* ebo, float* ver
 
     glGenBuffers(1, vbo);
     glBindBuffer(GL_ARRAY_BUFFER, *vbo);
-    glBufferData(GL_ARRAY_BUFFER, FLOAT_SIZE, vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, verticesSize, vertices, GL_STATIC_DRAW);
 
     std::cout << "vbo int: " << *vbo << std::endl;
     if (glGetError() == GL_NO_ERROR) {
@@ -144,7 +151,7 @@ void makeVAO(unsigned int* vao, unsigned int* vbo, unsigned int* ebo, float* ver
 
     glGenBuffers(1, ebo);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, *ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, INT_SIZE, indices, GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indicesSize, indices, GL_STATIC_DRAW);
 
     std::cout << "ebo int: " << *ebo << std::endl;
     if (glGetError() == GL_NO_ERROR) {
@@ -164,29 +171,33 @@ void makeVAO(unsigned int* vao, unsigned int* vbo, unsigned int* ebo, float* ver
 
 }
 
-void makeVAO(VAOobject& object, float* vertices, unsigned int* indices) {
-    makeVAO(object.vaoPtr, object.vboPtr, object.eboPtr, vertices, indices);
-};
-
+//yeah x2
 void makeVAO(VAOobject& object) {
-    makeVAO(object.vaoPtr, object.vboPtr, object.eboPtr, object.vertices, object.indices);
+    makeVAO(object.vaoPtr, object.vboPtr, object.eboPtr, object.vertices, object.indices, object.verticesSize, object.verticesSize);
 };
 
 //dubious. also delete consoleName later
 void makeVAO(VAOobject& object, const char* verticesPath, const char* indiciesPath, std::string consoleName) { 
 
-    std::cout << "importing" << consoleName << ": " << std::endl;
+    std::cout << "importing " << consoleName << ": " << std::endl;
 
     std::vector<float> verticesVector;
     importArray(verticesPath, verticesVector, "mesh");
 
     object.vertices = &verticesVector[0];
+    object.verticesSize = verticesVector.size() * INT_SIZE;
+    std::cout << "mesh size: " << object.verticesSize << std::endl;
 
-
-    std::vector<unsigned int> indicesVector;
+    std::vector<unsigned int> indicesVector; 
     importArray(indiciesPath, indicesVector, "indices");
 
     object.indices = &indicesVector[0];
+    object.indicesSize = indicesVector.size() * FLOAT_SIZE;
+    std::cout << "indices size: " << object.indicesSize << std::endl;
+
+
+    object.indices = &indicesVector[0]; //why does this work? shouldnt indices vector die and take the data along with it?
+    object.indicesSize = indicesVector.size();
 
     makeVAO(object);
 }
@@ -257,17 +268,9 @@ int main()
 
     makeVAO(square, "squareVertices.mesh", "squareIndices.ind", "square");
 
-    std::cout << "square.vao int: " << square.vao << std::endl;
-    std::cout << "square.vbo int: " << square.vbo << std::endl;
-    std::cout << "square.ebo int: " << square.ebo << std::endl;
-
     VAOobject hourglass;
 
     makeVAO(hourglass, "hourglassVertices.mesh", "hourglassIndices.ind", "hourglass");
-
-    std::cout << "hourglass.vao int: " << hourglass.vao << std::endl;
-    std::cout << "hourglass.vbo int: " << hourglass.vbo << std::endl;
-    std::cout << "hourglass.ebo int: " << hourglass.ebo << std::endl;
 
 
     VAOobject triangle; //code scaffolding
@@ -278,6 +281,7 @@ int main()
     makeVAO(cross, "squareVertices.mesh", "squareIndices.ind", "cross");
 
 
+    VAOobject vaoObjects[]{ square, hourglass, triangle, cross };//this list should not be hard-coded
 
 
     int logLength = 0;
@@ -359,7 +363,7 @@ int main()
     auto lastTime = std::chrono::system_clock::now();
 
 
-    VAOobject vaoObjects[] {square, hourglass,triangle,cross};
+
 
     glBindVertexArray((vaoObjects[shape]).vao);
 
@@ -378,8 +382,8 @@ int main()
         if (std::remainder(shaderTime, temporalResolution) == 0) {
             auto currentTime = std::chrono::system_clock::now();
             auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastTime);
-            std::cout << "fps is:" << (temporalResolution/(elapsed.count()/1000.0f)) << std::endl;
-            std::cout << "ms elapsed:" << elapsed.count() << std::endl;//why is it going up
+            //std::cout << "fps is:" << (temporalResolution/(elapsed.count()/1000.0f)) << std::endl;
+            //std::cout << "ms elapsed:" << elapsed.count() << std::endl;//why is it going up
             lastTime = currentTime;
         }
 
