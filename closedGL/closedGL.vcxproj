@@ -134,6 +134,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="fragment.frag" />
+    <None Include="hourglassIndices.ind" />
+    <None Include="hourglassVertices.mesh" />
     <None Include="squareIndices.ind" />
     <None Include="squareVertices.mesh" />
     <None Include="vertex.vert" />

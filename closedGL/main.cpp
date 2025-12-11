@@ -21,8 +21,8 @@
 
 enum meshState : int {
     SQUARE = 0,
-    TRIANGLE = 1,
-    HOURGLASS = 2,
+    HOURGLASS = 1,
+    TRIANGLE = 2,
     CROSS = 3
 };
 
@@ -57,6 +57,20 @@ struct VAOobject {
     unsigned int* indices;
 };
 
+void processInput(GLFWwindow* window) {
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+        glfwSetWindowShouldClose(window, true);
+    }
+    if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) {
+
+        if (shape == CROSS) {
+            shape = SQUARE;
+        }
+        else {
+            ++shape;
+        }
+    }
+};
 
 template <class dataType>
 //TODO: this is bad and horrible and is an afront to god himself
@@ -105,15 +119,6 @@ void importArray(const char* path, std::vector<dataType>& array, std::string con
     }
 
 }
-
-void processInput(GLFWwindow* window) {
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
-        glfwSetWindowShouldClose(window, true);
-    }
-    if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) {
-        ++shape;
-    }
-};
 
 void makeVAO(unsigned int* vao, unsigned int* vbo, unsigned int* ebo, float* vertices, unsigned int* indices) {
 
@@ -248,8 +253,6 @@ int main()
     glViewport(0, 0, windowWidth, windowHeight);
 
 
-
-
     VAOobject square;
 
     makeVAO(square, "squareVertices.mesh", "squareIndices.ind", "square");
@@ -258,6 +261,21 @@ int main()
     std::cout << "square.vbo int: " << square.vbo << std::endl;
     std::cout << "square.ebo int: " << square.ebo << std::endl;
 
+    VAOobject hourglass;
+
+    makeVAO(hourglass, "hourglassVertices.mesh", "hourglassIndices.ind", "hourglass");
+
+    std::cout << "hourglass.vao int: " << hourglass.vao << std::endl;
+    std::cout << "hourglass.vbo int: " << hourglass.vbo << std::endl;
+    std::cout << "hourglass.ebo int: " << hourglass.ebo << std::endl;
+
+
+    VAOobject triangle; //code scaffolding
+    makeVAO(triangle, "squareVertices.mesh", "squareIndices.ind", "triangle");
+
+
+    VAOobject cross;
+    makeVAO(cross, "squareVertices.mesh", "squareIndices.ind", "cross");
 
 
 
@@ -267,7 +285,7 @@ int main()
     char* log = new char[maxlogLength];
     int itLives;
 
-    unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
+    unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER); //TODO: this may also need to be a function
     glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
     glCompileShader(vertexShader);
     std::cout << "vertex shader status:";
@@ -341,11 +359,18 @@ int main()
     auto lastTime = std::chrono::system_clock::now();
 
 
-    glBindVertexArray(square.vao);
+    VAOobject vaoObjects[] {square, hourglass,triangle,cross};
 
+    glBindVertexArray((vaoObjects[shape]).vao);
 
+    int lastShape = shape; 
 
     while (!glfwWindowShouldClose(window)) {
+
+        if (lastShape != shape) {//this should be done in poll events
+            lastShape = shape;
+            glBindVertexArray((vaoObjects[shape]).vao);
+        }
 
         shaderTime++;
         glUniform1f(uniform_shaderTime, shaderTime);

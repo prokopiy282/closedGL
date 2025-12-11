@@ -27,5 +27,7 @@
     <None Include="fragment.frag" />
     <None Include="squareVertices.mesh" />
     <None Include="squareIndices.ind" />
+    <None Include="hourglassVertices.mesh" />
+    <None Include="hourglassIndices.ind" />
   </ItemGroup>
 </Project>
