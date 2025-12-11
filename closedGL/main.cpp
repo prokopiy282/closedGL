@@ -36,13 +36,15 @@ meshState& operator++(meshState& state) {
 enum meshState shape = SQUARE;
 
 //warning: only null construct this
-struct VAOobjects {
-    VAOobjects():vao(0),
+struct VAOobject {
+    VAOobject():vao(0),
         vbo(0),
         ebo(0),
         vaoPtr(&vao),
         vboPtr(&vbo),
-        eboPtr(&ebo){
+        eboPtr(&ebo),
+        vertices(nullptr),
+        indices(nullptr){
     }
 
     unsigned int vao = 0;
@@ -51,10 +53,58 @@ struct VAOobjects {
     unsigned int* vaoPtr = &vao;
     unsigned int* vboPtr = &vbo;
     unsigned int* eboPtr = &ebo;
+    float* vertices;
+    unsigned int* indices;
 };
 
 
+template <class dataType>
+//TODO: this is bad and horrible and is an afront to god himself
+void importArray(const char* path, std::vector<dataType>& array, std::string consoleName) {
 
+    std::ifstream arrayFile(path);
+
+    if (arrayFile) {
+        std::cout << consoleName << " array file imported succesfully" << std::endl;
+    }
+    else {
+        std::cout << consoleName << "array file import failed" << std::endl;
+        return;
+    }
+
+    std::stringstream buffer;
+    buffer << arrayFile.rdbuf();
+    std::string arrayString = buffer.str();
+
+    arrayFile.close();
+
+    std::string_view firstThreeBytes = std::string_view(arrayString).substr(0, 3);
+    if (firstThreeBytes == BYTE_ORDER_MARK) {
+        arrayString.erase(0, 3);
+    }
+
+    std::string temporaryString = "";
+    for (auto it = arrayString.begin(); it < arrayString.end(); it++) {
+
+        if (*it == '\n') {
+            continue;
+        }
+
+        else if (*it == ' ') {
+
+            if (temporaryString == "") {
+                continue;
+            }
+
+            array.push_back(static_cast<dataType>(std::atof(temporaryString.c_str())));
+            temporaryString.clear();
+            continue;
+        }
+
+        temporaryString.push_back(*it);
+    }
+
+}
 
 void processInput(GLFWwindow* window) {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
@@ -109,9 +159,32 @@ void makeVAO(unsigned int* vao, unsigned int* vbo, unsigned int* ebo, float* ver
 
 }
 
-void makeVAO(VAOobjects& object, float* vertices, unsigned int* indices) {
+void makeVAO(VAOobject& object, float* vertices, unsigned int* indices) {
     makeVAO(object.vaoPtr, object.vboPtr, object.eboPtr, vertices, indices);
 };
+
+void makeVAO(VAOobject& object) {
+    makeVAO(object.vaoPtr, object.vboPtr, object.eboPtr, object.vertices, object.indices);
+};
+
+//dubious. also delete consoleName later
+void makeVAO(VAOobject& object, const char* verticesPath, const char* indiciesPath, std::string consoleName) { 
+
+    std::cout << "importing" << consoleName << ": " << std::endl;
+
+    std::vector<float> verticesVector;
+    importArray(verticesPath, verticesVector, "mesh");
+
+    object.vertices = &verticesVector[0];
+
+
+    std::vector<unsigned int> indicesVector;
+    importArray(indiciesPath, indicesVector, "indices");
+
+    object.indices = &indicesVector[0];
+
+    makeVAO(object);
+}
 
 //shader type is only for debug purposes, leave empty str if you dont care. r and i values wont stop being a bane of my existence
 std::string getShaderSource(const char* path, std::string shaderType) {
@@ -137,53 +210,7 @@ std::string getShaderSource(const char* path, std::string shaderType) {
     return ShaderString;
 }
 
-template <class dataType> 
-//TODO: this is bad and horrible and is an afront to god himself
-void importArray(const char* path, std::vector<dataType>& array, std::string consoleName) {
 
-    std::ifstream arrayFile(path);
-
-    if (arrayFile) {
-        std::cout << consoleName << " array file imported succesfully" << std::endl;
-    }
-    else {
-        std::cout << consoleName << "array file import failed" << std::endl;
-        return;
-    }
-
-    std::stringstream buffer;
-    buffer << arrayFile.rdbuf();
-    std::string arrayString = buffer.str();
-
-    arrayFile.close();
-
-    std::string_view firstThreeBytes = std::string_view(arrayString).substr(0, 3);
-    if (firstThreeBytes == BYTE_ORDER_MARK) {
-        arrayString.erase(0, 3);
-    }
-
-    std::string temporaryString = "";
-    for (auto it = arrayString.begin(); it < arrayString.end(); it++) { 
-
-        if (*it == '\n') {
-            continue;
-        }
-
-        else if (*it == ' ') {
-
-            if (temporaryString == "") {
-                continue;
-            }
-
-            array.push_back(static_cast<dataType>(std::atof(temporaryString.c_str() ) ) );
-            temporaryString.clear();
-            continue;
-        }
-
-        temporaryString.push_back(*it);
-    }
-
-}
 
 
 int main()
@@ -218,34 +245,20 @@ int main()
     std::string fragmentShaderSourceString = getShaderSource("fragment.frag", "fragment");
     const char* fragmentShaderSource = fragmentShaderSourceString.c_str();
 
-
     glViewport(0, 0, windowWidth, windowHeight);
 
 
-    std::vector<float> verticesVector;
-    importArray("squareVertices.mesh", verticesVector, "mesh");
-
-    float* vertices = &verticesVector[0];
 
 
-    std::vector<unsigned int> indicesVector;
-    importArray("squareIndices.ind", indicesVector, "mesh");
+    VAOobject square;
 
-    unsigned int* indices = &indicesVector[0];
+    makeVAO(square, "squareVertices.mesh", "squareIndices.ind", "square");
+
+    std::cout << "square.vao int: " << square.vao << std::endl;
+    std::cout << "square.vbo int: " << square.vbo << std::endl;
+    std::cout << "square.ebo int: " << square.ebo << std::endl;
 
 
-    unsigned int vao = 0;
-    unsigned int vbo = 0;
-    unsigned int ebo = 0;
-    unsigned int* vaoPtr = &vao;
-    unsigned int* vboPtr = &vbo;
-    unsigned int* eboPtr = &ebo;
-
-    makeVAO(vaoPtr, vboPtr, eboPtr, vertices, indices);
-
-    std::cout << "vao int: " << vao << std::endl;
-    std::cout << "vbo int: " << vbo << std::endl;
-    std::cout << "ebo int: " << ebo << std::endl;
 
 
 
@@ -328,7 +341,7 @@ int main()
     auto lastTime = std::chrono::system_clock::now();
 
 
-    glBindVertexArray(vao);
+    glBindVertexArray(square.vao);
 
 
 
