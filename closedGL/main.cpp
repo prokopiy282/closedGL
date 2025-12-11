@@ -10,6 +10,7 @@
 #include <string>
 #include <string_view>
 #include <sstream>
+#include <vector>
 #include <chrono>
 #include <cmath>
 
@@ -34,6 +35,26 @@ meshState& operator++(meshState& state) {
 
 enum meshState shape = SQUARE;
 
+//warning: only null construct this
+struct VAOobjects {
+    VAOobjects():vao(0),
+        vbo(0),
+        ebo(0),
+        vaoPtr(&vao),
+        vboPtr(&vbo),
+        eboPtr(&ebo){
+    }
+
+    unsigned int vao = 0;
+    unsigned int vbo = 0;
+    unsigned int ebo = 0;
+    unsigned int* vaoPtr = &vao;
+    unsigned int* vboPtr = &vbo;
+    unsigned int* eboPtr = &ebo;
+};
+
+
+
 
 void processInput(GLFWwindow* window) {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
@@ -43,7 +64,6 @@ void processInput(GLFWwindow* window) {
         ++shape;
     }
 };
-
 
 void makeVAO(unsigned int* vao, unsigned int* vbo, unsigned int* ebo, float* vertices, unsigned int* indices) {
 
@@ -89,6 +109,10 @@ void makeVAO(unsigned int* vao, unsigned int* vbo, unsigned int* ebo, float* ver
 
 }
 
+void makeVAO(VAOobjects& object, float* vertices, unsigned int* indices) {
+    makeVAO(object.vaoPtr, object.vboPtr, object.eboPtr, vertices, indices);
+};
+
 //shader type is only for debug purposes, leave empty str if you dont care. r and i values wont stop being a bane of my existence
 std::string getShaderSource(const char* path, std::string shaderType) {
 
@@ -113,8 +137,9 @@ std::string getShaderSource(const char* path, std::string shaderType) {
     return ShaderString;
 }
 
-template <class dataType> //TODO: this is bad and horrible and is an afront to god himself
-void importArray(const char* path, dataType* array, int* size, std::string consoleName) {
+template <class dataType> 
+//TODO: this is bad and horrible and is an afront to god himself
+void importArray(const char* path, std::vector<dataType>& array, std::string consoleName) {
 
     std::ifstream arrayFile(path);
 
@@ -137,8 +162,26 @@ void importArray(const char* path, dataType* array, int* size, std::string conso
         arrayString.erase(0, 3);
     }
 
-    auto it = arrayString.begin();
-    
+    std::string temporaryString = "";
+    for (auto it = arrayString.begin(); it < arrayString.end(); it++) { 
+
+        if (*it == '\n') {
+            continue;
+        }
+
+        else if (*it == ' ') {
+
+            if (temporaryString == "") {
+                continue;
+            }
+
+            array.push_back(static_cast<dataType>(std::atof(temporaryString.c_str() ) ) );
+            temporaryString.clear();
+            continue;
+        }
+
+        temporaryString.push_back(*it);
+    }
 
 }
 
@@ -178,17 +221,18 @@ int main()
 
     glViewport(0, 0, windowWidth, windowHeight);
 
-    float vertices[] = {
-     0.5f, 0.5f, 0.0f,
-     0.5f,-0.5f, 0.0f,
-    -0.5f,-0.5f, 0.0f,
-    -0.5f, 0.5f, 0.0f,
-    };
 
-    unsigned int indices[] = {
-        0,1,3,
-        1,2,3
-    };
+    std::vector<float> verticesVector;
+    importArray("squareVertices.mesh", verticesVector, "mesh");
+
+    float* vertices = &verticesVector[0];
+
+
+    std::vector<unsigned int> indicesVector;
+    importArray("squareIndices.ind", indicesVector, "mesh");
+
+    unsigned int* indices = &indicesVector[0];
+
 
     unsigned int vao = 0;
     unsigned int vbo = 0;
@@ -202,6 +246,8 @@ int main()
     std::cout << "vao int: " << vao << std::endl;
     std::cout << "vbo int: " << vbo << std::endl;
     std::cout << "ebo int: " << ebo << std::endl;
+
+
 
     int logLength = 0;
     const int maxlogLength = 90;
@@ -238,6 +284,7 @@ int main()
         std::cout << "\n" << log << std::endl;
     }
 
+
     unsigned int shaderProgram = glCreateProgram();
     glAttachShader(shaderProgram, vertexShader);
     glAttachShader(shaderProgram, fragmentShader);
@@ -257,6 +304,7 @@ int main()
 
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
+
 
 
     //TODO: shader sets

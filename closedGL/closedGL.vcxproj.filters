@@ -25,5 +25,7 @@
   <ItemGroup>
     <None Include="vertex.vert" />
     <None Include="fragment.frag" />
+    <None Include="squareVertices.mesh" />
+    <None Include="squareIndices.ind" />
   </ItemGroup>
 </Project>
