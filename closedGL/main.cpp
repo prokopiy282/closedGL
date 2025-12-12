@@ -46,7 +46,8 @@ struct VAOobject {
         vertices(nullptr),
         indices(nullptr),
         verticesSize(0),
-        indicesSize(0){
+        indicesSize(0),
+        tris (0){
     }
 
     unsigned int vao = 0;
@@ -59,6 +60,7 @@ struct VAOobject {
     unsigned int* indices;
     size_t verticesSize;
     size_t indicesSize;
+    size_t tris;
 };
 
 void processInput(GLFWwindow* window) {
@@ -193,6 +195,7 @@ void makeVAO(VAOobject& object, const char* verticesPath, const char* indiciesPa
 
     object.indices = &indicesVector[0];
     object.indicesSize = indicesVector.size() * FLOAT_SIZE;
+    object.tris = indicesVector.size();
     std::cout << "indices size: " << object.indicesSize << std::endl;
 
 
@@ -238,7 +241,7 @@ int main()
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     constexpr int windowWidth = 640;
-    constexpr int windowHeight = 480;
+    constexpr int windowHeight = 640;
 
     GLFWwindow* window = glfwCreateWindow(windowWidth, windowHeight, "black magic", NULL, NULL);
     if (!window) {
@@ -273,12 +276,12 @@ int main()
     makeVAO(hourglass, "hourglassVertices.mesh", "hourglassIndices.ind", "hourglass");
 
 
-    VAOobject triangle; //code scaffolding
-    makeVAO(triangle, "squareVertices.mesh", "squareIndices.ind", "triangle");
+    VAOobject triangle; 
+    makeVAO(triangle, "triangleVertices.mesh", "triangleIndices.ind", "triangle");
 
 
     VAOobject cross;
-    makeVAO(cross, "squareVertices.mesh", "squareIndices.ind", "cross");
+    makeVAO(cross, "crossVertices.mesh", "crossIndices.ind", "cross");
 
 
     VAOobject vaoObjects[]{ square, hourglass, triangle, cross };//this list should not be hard-coded
@@ -359,6 +362,10 @@ int main()
     glUniform1f(uniform_temporalResolution, temporalResolution);
 
 
+    glm::mat4 transformationMatrix = glm::mat4(1.0f);
+    int uniform_transformationMatrix = glGetUniformLocation(shaderProgram, "transformationMatrix");
+    glUniformMatrix4fv(uniform_transformationMatrix, 1, GL_FALSE, glm::value_ptr(transformationMatrix));
+
 
     auto lastTime = std::chrono::system_clock::now();
 
@@ -379,18 +386,22 @@ int main()
         shaderTime++;
         glUniform1f(uniform_shaderTime, shaderTime);
 
+        transformationMatrix = glm::rotate(transformationMatrix, glm::radians(1.0f), glm::vec3(0.0, 0.0, 1.0));
+        glUniformMatrix4fv(uniform_transformationMatrix, 1, GL_FALSE, glm::value_ptr(transformationMatrix));
+
+
         if (std::remainder(shaderTime, temporalResolution) == 0) {
             auto currentTime = std::chrono::system_clock::now();
             auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastTime);
-            //std::cout << "fps is:" << (temporalResolution/(elapsed.count()/1000.0f)) << std::endl;
-            //std::cout << "ms elapsed:" << elapsed.count() << std::endl;//why is it going up
+            std::cout << "fps is:" << (temporalResolution/(elapsed.count()/1000.0f)) << std::endl;
+            std::cout << "ms elapsed:" << elapsed.count() << std::endl;
             lastTime = currentTime;
         }
 
         glClearColor(1.0f, 0.5f, 0.5f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_TRIANGLES, (vaoObjects[shape]).tris, GL_UNSIGNED_INT, 0);
 
         glfwSwapBuffers(window);
 

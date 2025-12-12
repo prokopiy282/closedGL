@@ -29,5 +29,9 @@
     <None Include="squareIndices.ind" />
     <None Include="hourglassVertices.mesh" />
     <None Include="hourglassIndices.ind" />
+    <None Include="triangleIndices.ind" />
+    <None Include="triangleVertices.mesh" />
+    <None Include="crossVertices.mesh" />
+    <None Include="crossIndices.ind" />
   </ItemGroup>
 </Project>

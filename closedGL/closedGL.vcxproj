@@ -133,11 +133,15 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="crossIndices.ind" />
+    <None Include="crossVertices.mesh" />
     <None Include="fragment.frag" />
     <None Include="hourglassIndices.ind" />
     <None Include="hourglassVertices.mesh" />
     <None Include="squareIndices.ind" />
     <None Include="squareVertices.mesh" />
+    <None Include="triangleIndices.ind" />
+    <None Include="triangleVertices.mesh" />
     <None Include="vertex.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
