@@ -14,16 +14,24 @@
 #include <chrono>
 #include <cmath>
 
+//todo: move with 2 modes (mouse and kb, tab toggle)
+//      make rate limiting for changing shape
+//      dvd animation
+//      linear interpolation between figures
+//      fix makeVAO function and add memory to objects
+//      fix up shader maker
+
+
 #define INT_SIZE 4
 #define FLOAT_SIZE 4
 #define BYTE_ORDER_MARK "\xEF\xBB\xBF"
 
 
-enum meshState : int {
-    SQUARE = 0,
-    HOURGLASS = 1,
-    TRIANGLE = 2,
-    CROSS = 3
+enum meshState {
+    SQUARE,
+    HOURGLASS,
+    TRIANGLE,
+    CROSS
 };
 
 meshState& operator++(meshState& state) {
@@ -33,22 +41,12 @@ meshState& operator++(meshState& state) {
     return state;
 }
 
-enum meshState shape = SQUARE;
+meshState shape = SQUARE;
 
 //warning: only null construct this
 struct VAOobject {
-    VAOobject():vao(0),
-        vbo(0),
-        ebo(0),
-        vaoPtr(&vao),
-        vboPtr(&vbo),
-        eboPtr(&ebo),
-        vertices(nullptr),
-        indices(nullptr),
-        verticesSize(0),
-        indicesSize(0),
-        tris (0){
-    }
+
+    VAOobject() = default;
 
     unsigned int vao = 0;
     unsigned int vbo = 0;
@@ -56,11 +54,11 @@ struct VAOobject {
     unsigned int* vaoPtr = &vao;
     unsigned int* vboPtr = &vbo;
     unsigned int* eboPtr = &ebo;
-    float* vertices;
-    unsigned int* indices;
-    size_t verticesSize;
-    size_t indicesSize;
-    size_t tris;
+    float* vertices = nullptr;
+    unsigned int* indices = nullptr;
+    size_t verticesSize = 0;
+    size_t indicesSize = 0;
+    size_t tris = 0;
 };
 
 void processInput(GLFWwindow* window) {
@@ -173,13 +171,8 @@ void makeVAO(unsigned int* vao, unsigned int* vbo, unsigned int* ebo, float* ver
 
 }
 
-//yeah x2
-void makeVAO(VAOobject& object) {
-    makeVAO(object.vaoPtr, object.vboPtr, object.eboPtr, object.vertices, object.indices, object.verticesSize, object.verticesSize);
-};
-
 //dubious. also delete consoleName later
-void makeVAO(VAOobject& object, const char* verticesPath, const char* indiciesPath, std::string consoleName) { 
+void prepareVertData(VAOobject& object, const char* verticesPath, const char* indiciesPath, std::string consoleName) { 
 
     std::cout << "importing " << consoleName << ": " << std::endl;
 
@@ -202,7 +195,7 @@ void makeVAO(VAOobject& object, const char* verticesPath, const char* indiciesPa
     object.indices = &indicesVector[0]; //why does this work? shouldnt indices vector die and take the data along with it?
     object.indicesSize = indicesVector.size();
 
-    makeVAO(object);
+    makeVAO(object.vaoPtr, object.vboPtr, object.eboPtr, object.vertices, object.indices, object.verticesSize, object.verticesSize);
 }
 
 //shader type is only for debug purposes, leave empty str if you dont care. r and i values wont stop being a bane of my existence
@@ -268,20 +261,16 @@ int main()
 
 
     VAOobject square;
-
-    makeVAO(square, "squareVertices.mesh", "squareIndices.ind", "square");
+    prepareVertData(square, "squareVertices.mesh", "squareIndices.ind", "square");
 
     VAOobject hourglass;
-
-    makeVAO(hourglass, "hourglassVertices.mesh", "hourglassIndices.ind", "hourglass");
-
+    prepareVertData(hourglass, "hourglassVertices.mesh", "hourglassIndices.ind", "hourglass");
 
     VAOobject triangle; 
-    makeVAO(triangle, "triangleVertices.mesh", "triangleIndices.ind", "triangle");
-
+    prepareVertData(triangle, "triangleVertices.mesh", "triangleIndices.ind", "triangle");
 
     VAOobject cross;
-    makeVAO(cross, "crossVertices.mesh", "crossIndices.ind", "cross");
+    prepareVertData(cross, "crossVertices.mesh", "crossIndices.ind", "cross");
 
 
     VAOobject vaoObjects[]{ square, hourglass, triangle, cross };//this list should not be hard-coded
@@ -357,9 +346,10 @@ int main()
     int uniform_gammaCorrection = glGetUniformLocation(shaderProgram, "gammaCorrection");
     glUniform1f(uniform_gammaCorrection, gammaCorrection);
 
-    const float temporalResolution = 64.0f; //maybe casts IN the shader are not a good idea. also does deltatime if equal to fps
-    int uniform_temporalResolution = glGetUniformLocation(shaderProgram, "temporalResolution");
-    glUniform1f(uniform_temporalResolution, temporalResolution);
+
+    const float colorSpeed = 0.5f;
+    int uniform_colorSpeed = glGetUniformLocation(shaderProgram, "colorSpeed");
+    glUniform1f(uniform_colorSpeed, colorSpeed);
 
 
     glm::mat4 transformationMatrix = glm::mat4(1.0f);
@@ -367,7 +357,10 @@ int main()
     glUniformMatrix4fv(uniform_transformationMatrix, 1, GL_FALSE, glm::value_ptr(transformationMatrix));
 
 
-    auto lastTime = std::chrono::system_clock::now();
+    const float fpsPollRate = 4000.0f;
+
+    const float rotationalSpeed = 1.0f;
+
 
 
 
@@ -376,6 +369,10 @@ int main()
 
     int lastShape = shape; 
 
+    //glfwSetTime(0.0f);
+
+    auto lastTime = std::chrono::system_clock::now();
+
     while (!glfwWindowShouldClose(window)) {
 
         if (lastShape != shape) {//this should be done in poll events
@@ -383,25 +380,31 @@ int main()
             glBindVertexArray((vaoObjects[shape]).vao);
         }
 
-        shaderTime++;
+        shaderTime = static_cast<float>(glfwGetTime());
         glUniform1f(uniform_shaderTime, shaderTime);
 
-        transformationMatrix = glm::rotate(transformationMatrix, glm::radians(1.0f), glm::vec3(0.0, 0.0, 1.0));
-        glUniformMatrix4fv(uniform_transformationMatrix, 1, GL_FALSE, glm::value_ptr(transformationMatrix));
 
+        auto currentTime = std::chrono::system_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastTime);
 
-        if (std::remainder(shaderTime, temporalResolution) == 0) {
-            auto currentTime = std::chrono::system_clock::now();
-            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastTime);
-            std::cout << "fps is:" << (temporalResolution/(elapsed.count()/1000.0f)) << std::endl;
+        if (elapsed.count() >= fpsPollRate) {
+            std::cout << "fps is:" << (fpsPollRate / (elapsed.count() / 1000.0f)) << std::endl;
             std::cout << "ms elapsed:" << elapsed.count() << std::endl;
             lastTime = currentTime;
         }
 
+        if (elapsed.count() >= rotationalSpeed) {
+            transformationMatrix = glm::rotate(transformationMatrix, glm::radians(1.0f), glm::vec3(0.0, 0.0, 1.0));
+            glUniformMatrix4fv(uniform_transformationMatrix, 1, GL_FALSE, glm::value_ptr(transformationMatrix));
+        }
+
+        shaderTime = static_cast<float>(glfwGetTime());
+
+
         glClearColor(1.0f, 0.5f, 0.5f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        glDrawElements(GL_TRIANGLES, (vaoObjects[shape]).tris, GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_TRIANGLES, vaoObjects[shape].tris, GL_UNSIGNED_INT, 0);
 
         glfwSwapBuffers(window);
 
