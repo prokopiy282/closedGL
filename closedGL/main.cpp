@@ -14,11 +14,11 @@
 #include <chrono>
 #include <cmath>
 
-//todo: move with 2 modes (mouse and kb, tab toggle)
+//todo: move with 2 modes (mouse and kb, tab toggle) 
 //      make rate limiting for changing shape
 //      dvd animation
 //      linear interpolation between figures
-//      fix makeVAO function and add memory to objects
+//      fix makeVAO function and add memory to objects - check
 //      fix up shader maker
 
 
@@ -54,11 +54,29 @@ struct VAOobject {
     unsigned int* vaoPtr = &vao;
     unsigned int* vboPtr = &vbo;
     unsigned int* eboPtr = &ebo;
-    float* vertices = nullptr;
-    unsigned int* indices = nullptr;
-    size_t verticesSize = 0;
-    size_t indicesSize = 0;
-    size_t tris = 0;
+    std::vector<float> verticesVec;
+    std::vector<unsigned int> indicesVec; //limits max mesh size bcs uint. though the current state of tech probably limits it before that
+    
+    size_t getVertSize() {
+        return verticesVec.size() * FLOAT_SIZE;
+    }
+
+    size_t getIndSize() {
+        return indicesVec.size() * INT_SIZE;
+    }
+
+    size_t getIndCount() {
+        return indicesVec.size();
+    }
+
+    float* getVertDumbArray() {
+        return &verticesVec[0]; //cromulent vulnerability 1
+    }
+
+    unsigned int* getIndDumbArray() {
+        return &indicesVec[0]; //cromulent vulnerability 2
+    }
+
 };
 
 void processInput(GLFWwindow* window) {
@@ -77,7 +95,8 @@ void processInput(GLFWwindow* window) {
 };
 
 template <class dataType>
-//TODO: this is bad and horrible and is an afront to god himself
+//TODO: this is bad and horrible and is an afront to god himself.
+// update: god is alforgiving it seems
 void importArray(const char* path, std::vector<dataType>& array, std::string consoleName) {
 
     std::ifstream arrayFile(path);
@@ -126,34 +145,42 @@ void importArray(const char* path, std::vector<dataType>& array, std::string con
 
 }
 
-//yeah... TODO:refactor
-void makeVAO(unsigned int* vao, unsigned int* vbo, unsigned int* ebo, float* vertices, unsigned int* indices, size_t verticesSize, size_t indicesSize) {
 
-    glGenVertexArrays(1, vao);
-    glBindVertexArray(*vao);
+void genBuffers(VAOobject& object, const char* verticesPath, const char* indiciesPath, std::string consoleName) { 
+
+    std::cout << "importing " << consoleName << ": " << std::endl;
+
+    importArray(verticesPath, object.verticesVec, "mesh");
+    std::cout << "mesh size: " << object.getVertSize() << std::endl;
+
+    importArray(indiciesPath, object.indicesVec, "indices");
+    std::cout << "indices size: " << object.getIndSize() << std::endl;
+
+    glGenVertexArrays(1, object.vaoPtr);
+    glBindVertexArray(*object.vaoPtr);
     glEnableVertexAttribArray(0);
 
-    std::cout << "vao int: " << *vao << std::endl;
+    std::cout << "vao int: " << *object.vaoPtr << std::endl;
     if (glGetError() == GL_NO_ERROR) {
         std::cout << "vao created without error" << std::endl;
     }
 
 
-    glGenBuffers(1, vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, *vbo);
-    glBufferData(GL_ARRAY_BUFFER, verticesSize, vertices, GL_STATIC_DRAW);
+    glGenBuffers(1, object.vboPtr);
+    glBindBuffer(GL_ARRAY_BUFFER, *object.vboPtr);
+    glBufferData(GL_ARRAY_BUFFER, object.getVertSize(), object.getVertDumbArray(), GL_STATIC_DRAW);
 
-    std::cout << "vbo int: " << *vbo << std::endl;
+    std::cout << "vbo int: " << *object.vboPtr << std::endl;
     if (glGetError() == GL_NO_ERROR) {
         std::cout << "vbo created without error" << std::endl;
     }
 
 
-    glGenBuffers(1, ebo);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, *ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indicesSize, indices, GL_STATIC_DRAW);
+    glGenBuffers(1, object.eboPtr);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, *object.eboPtr);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, object.getIndSize(), object.getIndDumbArray(), GL_STATIC_DRAW);
 
-    std::cout << "ebo int: " << *ebo << std::endl;
+    std::cout << "ebo int: " << object.eboPtr << std::endl;
     if (glGetError() == GL_NO_ERROR) {
         std::cout << "ebo created without error" << std::endl;
     }
@@ -171,32 +198,6 @@ void makeVAO(unsigned int* vao, unsigned int* vbo, unsigned int* ebo, float* ver
 
 }
 
-//dubious. also delete consoleName later
-void prepareVertData(VAOobject& object, const char* verticesPath, const char* indiciesPath, std::string consoleName) { 
-
-    std::cout << "importing " << consoleName << ": " << std::endl;
-
-    std::vector<float> verticesVector;
-    importArray(verticesPath, verticesVector, "mesh");
-
-    object.vertices = &verticesVector[0];
-    object.verticesSize = verticesVector.size() * INT_SIZE;
-    std::cout << "mesh size: " << object.verticesSize << std::endl;
-
-    std::vector<unsigned int> indicesVector; 
-    importArray(indiciesPath, indicesVector, "indices");
-
-    object.indices = &indicesVector[0];
-    object.indicesSize = indicesVector.size() * FLOAT_SIZE;
-    object.tris = indicesVector.size();
-    std::cout << "indices size: " << object.indicesSize << std::endl;
-
-
-    object.indices = &indicesVector[0]; //why does this work? shouldnt indices vector die and take the data along with it?
-    object.indicesSize = indicesVector.size();
-
-    makeVAO(object.vaoPtr, object.vboPtr, object.eboPtr, object.vertices, object.indices, object.verticesSize, object.verticesSize);
-}
 
 //shader type is only for debug purposes, leave empty str if you dont care. r and i values wont stop being a bane of my existence
 std::string getShaderSource(const char* path, std::string shaderType) {
@@ -221,8 +222,6 @@ std::string getShaderSource(const char* path, std::string shaderType) {
 
     return ShaderString;
 }
-
-
 
 
 int main()
@@ -261,16 +260,16 @@ int main()
 
 
     VAOobject square;
-    prepareVertData(square, "squareVertices.mesh", "squareIndices.ind", "square");
+    genBuffers(square, "squareVertices.mesh", "squareIndices.ind", "square");
 
     VAOobject hourglass;
-    prepareVertData(hourglass, "hourglassVertices.mesh", "hourglassIndices.ind", "hourglass");
+    genBuffers(hourglass, "hourglassVertices.mesh", "hourglassIndices.ind", "hourglass");
 
     VAOobject triangle; 
-    prepareVertData(triangle, "triangleVertices.mesh", "triangleIndices.ind", "triangle");
+    genBuffers(triangle, "triangleVertices.mesh", "triangleIndices.ind", "triangle");
 
     VAOobject cross;
-    prepareVertData(cross, "crossVertices.mesh", "crossIndices.ind", "cross");
+    genBuffers(cross, "crossVertices.mesh", "crossIndices.ind", "cross");
 
 
     VAOobject vaoObjects[]{ square, hourglass, triangle, cross };//this list should not be hard-coded
@@ -404,7 +403,7 @@ int main()
         glClearColor(1.0f, 0.5f, 0.5f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        glDrawElements(GL_TRIANGLES, vaoObjects[shape].tris, GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_TRIANGLES, vaoObjects[shape].getIndCount(), GL_UNSIGNED_INT, 0);
 
         glfwSwapBuffers(window);
 
