@@ -44,6 +44,8 @@ meshState& operator++(meshState& state) {
 meshState shape = SQUARE;
 
 
+
+
 struct ShaderObject {
     unsigned int vertexShader;
     unsigned int fragmentShader;
@@ -229,6 +231,8 @@ struct VAOobject {
     }
 
 };
+
+
 void genBuffers(VAOobject& object, const char* verticesPath, const char* indiciesPath, const std::string consoleName) { 
 
     std::cout << "importing " << consoleName << ": " << std::endl;
@@ -298,7 +302,18 @@ void processInput(GLFWwindow* window) {
 };
 
 
+class DVDAnimation {
+private:
 
+    std::chrono::system_clock::time_point lastTime = std::chrono::system_clock::now();
+    std::chrono::system_clock::time_point currentTime = std::chrono::system_clock::now();
+    std::chrono::milliseconds elapsed;
+    float xPos = 0;
+    float yPos = 0;
+
+public:
+
+};
 
 
 int main()
@@ -351,9 +366,6 @@ int main()
     constructShaders("vertex.vert", "fragment.frag", shaders);
 
 
-
-
-
     //TODO: shader sets
     static int uniform_windowSize = glGetUniformLocation(shaders.shaderProgram, "windowSize");
     glUniform2f(uniform_windowSize, windowWidth, windowHeight);
@@ -381,7 +393,10 @@ int main()
 
     const float rotationalSpeed = 1.0f;
 
-
+    //we boutta get FANCY
+    std::vector<void* ()> eventQueue;
+    //size_t (VAOobject::*ptrToMemb)() = &VAOobject::getVertSize;
+    //eventQueue.push_back(VAOobject.*ptrToMemb);
 
     glBindVertexArray((vaoObjects[shape]).vao);
 
