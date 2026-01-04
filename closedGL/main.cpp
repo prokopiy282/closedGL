@@ -19,7 +19,7 @@
 //      dvd animation
 //      linear interpolation between figures
 //      fix makeVAO function and add memory to objects - check
-//      fix up shader maker
+//      fix up shader maker - semi-check
 
 
 #define INT_SIZE 4
@@ -43,56 +43,104 @@ meshState& operator++(meshState& state) {
 
 meshState shape = SQUARE;
 
-//warning: only null construct this
-struct VAOobject {
 
-    VAOobject() = default;
+struct ShaderObject {
+    unsigned int vertexShader;
+    unsigned int fragmentShader;
+    unsigned int shaderProgram;
+};
 
-    unsigned int vao = 0;
-    unsigned int vbo = 0;
-    unsigned int ebo = 0;
-    unsigned int* vaoPtr = &vao;
-    unsigned int* vboPtr = &vbo;
-    unsigned int* eboPtr = &ebo;
-    std::vector<float> verticesVec;
-    std::vector<unsigned int> indicesVec; //limits max mesh size bcs uint. though the current state of tech probably limits it before that
+//shader type is only for debug purposes, leave empty str if you dont care. r and i values wont stop being a bane of my existence
+std::string getShaderSource(const char* path, const std::string shaderType) {
+
+    std::ifstream shaderFile(path);
+
+    if (shaderFile) {
+        std::cout << shaderType << " shader file imported succesfully" << std::endl;
+    }
+    else {
+        std::cout << shaderType << " shader file import failed" << std::endl;
+        return "";
+    }
+
+    std::stringstream buffer;
+    buffer << shaderFile.rdbuf();
+    std::string shaderString = buffer.str();
+
+    shaderFile.close();
+
+    std::cout << shaderType << " shader: \n" << shaderString << std::endl;
+
+    return shaderString;
+}
+
+
+void constructShaders(const char* vertexPath, const char* fragmentPath, ShaderObject& object) {
+
+    std::string vertexShaderString = getShaderSource(vertexPath, "vertex");
+    const char* vertexShaderSource = vertexShaderString.c_str();
+
+    std::string fragmentShaderString = getShaderSource(fragmentPath, "fragment");
+    const char* fragmentShaderSource = fragmentShaderString.c_str();
     
-    size_t getVertSize() {
-        return verticesVec.size() * FLOAT_SIZE;
+
+    int logLength = 0;
+    const int maxlogLength = 90;
+    char* log = new char[maxlogLength];
+    int itLives;
+
+    object.vertexShader = glCreateShader(GL_VERTEX_SHADER); //TODO: this may also need to be a function
+    glShaderSource(object.vertexShader, 1, &vertexShaderSource, NULL);
+    glCompileShader(object.vertexShader);
+    std::cout << "vertex shader status:";
+    glGetShaderiv(object.vertexShader, GL_COMPILE_STATUS, &itLives);
+    if (itLives == GL_TRUE)
+    {
+        std::cout << " is happy :3 \n";
+
+    }
+    else {
+        glGetShaderInfoLog(object.vertexShader, maxlogLength, &logLength, log);
+        std::cout << "\n" << log << std::endl;
     }
 
-    size_t getIndSize() {
-        return indicesVec.size() * INT_SIZE;
+
+    object.fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(object.fragmentShader, 1, &fragmentShaderSource, NULL);
+    glCompileShader(object.fragmentShader);
+    std::cout << "fragment shader status:";
+    glGetShaderiv(object.fragmentShader, GL_COMPILE_STATUS, &itLives);
+    if (itLives == GL_TRUE)
+    {
+        std::cout << " is happy :3 \n";
+    }
+    else {
+        glGetShaderInfoLog(object.fragmentShader, maxlogLength, &logLength, log);
+        std::cout << "\n" << log << std::endl;
     }
 
-    size_t getIndCount() {
-        return indicesVec.size();
+
+    object.shaderProgram = glCreateProgram();
+    glAttachShader(object.shaderProgram, object.vertexShader);
+    glAttachShader(object.shaderProgram, object.fragmentShader);
+    glLinkProgram(object.shaderProgram);
+    glUseProgram(object.shaderProgram);
+    std::cout << "shader Program status:";
+    glGetProgramiv(object.shaderProgram, GL_LINK_STATUS, &itLives);
+    if (itLives == GL_TRUE)
+    {
+        std::cout << " is happy :3 \n";
+
+    }
+    else {
+        glGetProgramInfoLog(object.shaderProgram, maxlogLength, &logLength, log);
+        std::cout << "\n" << log << std::endl;
     }
 
-    float* getVertDumbArray() {
-        return &verticesVec[0]; //cromulent vulnerability 1
-    }
+    glDeleteShader(object.vertexShader);
+    glDeleteShader(object.fragmentShader);
+}
 
-    unsigned int* getIndDumbArray() {
-        return &indicesVec[0]; //cromulent vulnerability 2
-    }
-
-};
-
-void processInput(GLFWwindow* window) {
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
-        glfwSetWindowShouldClose(window, true);
-    }
-    if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) {
-
-        if (shape == CROSS) {
-            shape = SQUARE;
-        }
-        else {
-            ++shape;
-        }
-    }
-};
 
 template <class dataType>
 //TODO: this is bad and horrible and is an afront to god himself.
@@ -146,7 +194,42 @@ void importArray(const char* path, std::vector<dataType>& array, std::string con
 }
 
 
-void genBuffers(VAOobject& object, const char* verticesPath, const char* indiciesPath, std::string consoleName) { 
+//warning: only null construct this
+struct VAOobject {
+
+    VAOobject() = default;
+
+    unsigned int vao = 0;
+    unsigned int vbo = 0;
+    unsigned int ebo = 0;
+    unsigned int* vaoPtr = &vao;
+    unsigned int* vboPtr = &vbo;
+    unsigned int* eboPtr = &ebo;
+    std::vector<float> verticesVec;
+    std::vector<unsigned int> indicesVec; //limits max mesh size bcs uint. though the current state of tech probably limits it before that
+
+    size_t getVertSize() {
+        return verticesVec.size() * FLOAT_SIZE;
+    }
+
+    size_t getIndSize() {
+        return indicesVec.size() * INT_SIZE;
+    }
+
+    size_t getIndCount() {
+        return indicesVec.size();
+    }
+
+    float* getVertDumbArray() {
+        return &verticesVec[0]; //cromulent vulnerability 1
+    }
+
+    unsigned int* getIndDumbArray() {
+        return &indicesVec[0]; //cromulent vulnerability 2
+    }
+
+};
+void genBuffers(VAOobject& object, const char* verticesPath, const char* indiciesPath, const std::string consoleName) { 
 
     std::cout << "importing " << consoleName << ": " << std::endl;
 
@@ -180,7 +263,7 @@ void genBuffers(VAOobject& object, const char* verticesPath, const char* indicie
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, *object.eboPtr);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, object.getIndSize(), object.getIndDumbArray(), GL_STATIC_DRAW);
 
-    std::cout << "ebo int: " << object.eboPtr << std::endl;
+    std::cout << "ebo int: " << *object.eboPtr << std::endl;
     if (glGetError() == GL_NO_ERROR) {
         std::cout << "ebo created without error" << std::endl;
     }
@@ -199,29 +282,23 @@ void genBuffers(VAOobject& object, const char* verticesPath, const char* indicie
 }
 
 
-//shader type is only for debug purposes, leave empty str if you dont care. r and i values wont stop being a bane of my existence
-std::string getShaderSource(const char* path, std::string shaderType) {
-
-    std::ifstream ShaderFile(path);
-
-    if (ShaderFile) {
-        std::cout << shaderType << " shader file imported succesfully" << std::endl;
+void processInput(GLFWwindow* window) {
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+        glfwSetWindowShouldClose(window, true);
     }
-    else {
-        std::cout << shaderType << " shader file import failed" << std::endl;
-        return "";
+    if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) {
+
+        if (shape == CROSS) {
+            shape = SQUARE;
+        }
+        else {
+            ++shape;
+        }
     }
+};
 
-    std::stringstream buffer;
-    buffer << ShaderFile.rdbuf();
-    std::string ShaderString = buffer.str();
 
-    ShaderFile.close();
 
-    std::cout << shaderType << " shader: \n" << ShaderString << std::endl;
-
-    return ShaderString;
-}
 
 
 int main()
@@ -250,11 +327,6 @@ int main()
     }
 
 
-    std::string vertexShaderSourceString = getShaderSource("vertex.vert", "vertex");
-    const char* vertexShaderSource = vertexShaderSourceString.c_str();
-
-    std::string fragmentShaderSourceString = getShaderSource("fragment.frag", "fragment");
-    const char* fragmentShaderSource = fragmentShaderSourceString.c_str();
 
     glViewport(0, 0, windowWidth, windowHeight);
 
@@ -275,92 +347,39 @@ int main()
     VAOobject vaoObjects[]{ square, hourglass, triangle, cross };//this list should not be hard-coded
 
 
-    int logLength = 0;
-    const int maxlogLength = 90;
-    char* log = new char[maxlogLength];
-    int itLives;
-
-    unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER); //TODO: this may also need to be a function
-    glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
-    glCompileShader(vertexShader);
-    std::cout << "vertex shader status:";
-    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &itLives);
-    if (itLives == GL_TRUE)
-    {
-        std::cout << " is happy :3 \n";
-
-    }
-    else {
-        glGetShaderInfoLog(vertexShader, maxlogLength, &logLength, log);
-        std::cout << "\n" << log << std::endl;
-    }
+    ShaderObject shaders;
+    constructShaders("vertex.vert", "fragment.frag", shaders);
 
 
-    unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
-    glCompileShader(fragmentShader);
-    std::cout << "fragment shader status:";
-    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &itLives);
-    if (itLives == GL_TRUE)
-    {
-        std::cout << " is happy :3 \n";
-    }
-    else {
-        glGetShaderInfoLog(fragmentShader, maxlogLength, &logLength, log);
-        std::cout << "\n" << log << std::endl;
-    }
-
-
-    unsigned int shaderProgram = glCreateProgram();
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
-    glLinkProgram(shaderProgram);
-    glUseProgram(shaderProgram);
-    std::cout << "shader Program status:";
-    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &itLives);
-    if (itLives == GL_TRUE)
-    {
-        std::cout << " is happy :3 \n";
-
-    }
-    else {
-        glGetProgramInfoLog(shaderProgram, maxlogLength, &logLength, log);
-        std::cout << "\n" << log << std::endl;
-    }
-
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
 
 
 
     //TODO: shader sets
-    static int uniform_windowSize = glGetUniformLocation(shaderProgram, "windowSize");
+    static int uniform_windowSize = glGetUniformLocation(shaders.shaderProgram, "windowSize");
     glUniform2f(uniform_windowSize, windowWidth, windowHeight);
 
     float shaderTime = 0.0f; //TODO: add deltatime. also maybe a 32 bit float is a bit wasteful to store ints
-    int uniform_shaderTime = glGetUniformLocation(shaderProgram, "shaderTime");
+    int uniform_shaderTime = glGetUniformLocation(shaders.shaderProgram, "shaderTime");
     glUniform1f(uniform_shaderTime, shaderTime);
 
     const float gammaCorrection = 0.45f; //2.2 gamma my beloved
-    int uniform_gammaCorrection = glGetUniformLocation(shaderProgram, "gammaCorrection");
+    int uniform_gammaCorrection = glGetUniformLocation(shaders.shaderProgram, "gammaCorrection");
     glUniform1f(uniform_gammaCorrection, gammaCorrection);
 
 
     const float colorSpeed = 0.5f;
-    int uniform_colorSpeed = glGetUniformLocation(shaderProgram, "colorSpeed");
+    int uniform_colorSpeed = glGetUniformLocation(shaders.shaderProgram, "colorSpeed");
     glUniform1f(uniform_colorSpeed, colorSpeed);
 
 
     glm::mat4 transformationMatrix = glm::mat4(1.0f);
-    int uniform_transformationMatrix = glGetUniformLocation(shaderProgram, "transformationMatrix");
+    int uniform_transformationMatrix = glGetUniformLocation(shaders.shaderProgram, "transformationMatrix");
     glUniformMatrix4fv(uniform_transformationMatrix, 1, GL_FALSE, glm::value_ptr(transformationMatrix));
 
 
     const float fpsPollRate = 4000.0f;
 
     const float rotationalSpeed = 1.0f;
-
-
 
 
 
@@ -371,6 +390,8 @@ int main()
     //glfwSetTime(0.0f);
 
     auto lastTime = std::chrono::system_clock::now();
+
+    bool showFPS = false;
 
     while (!glfwWindowShouldClose(window)) {
 
@@ -386,7 +407,7 @@ int main()
         auto currentTime = std::chrono::system_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastTime);
 
-        if (elapsed.count() >= fpsPollRate) {
+        if (elapsed.count() >= fpsPollRate && showFPS) {
             std::cout << "fps is:" << (fpsPollRate / (elapsed.count() / 1000.0f)) << std::endl;
             std::cout << "ms elapsed:" << elapsed.count() << std::endl;
             lastTime = currentTime;
