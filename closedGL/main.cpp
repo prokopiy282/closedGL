@@ -14,12 +14,12 @@
 #include <chrono>
 #include <cmath>
 
+
+#include "input.h"
+
 //todo: move with 2 modes (mouse and kb, tab toggle) 
-//      make rate limiting for changing shape
 //      dvd animation
 //      linear interpolation between figures
-//      fix makeVAO function and add memory to objects - check
-//      fix up shader maker - semi-check
 
 
 #define INT_SIZE 4
@@ -37,6 +37,12 @@ enum meshState {
 meshState& operator++(meshState& state) {
     int newState = static_cast<int>(state);
     newState++;
+    state = static_cast<meshState>(newState);
+    return state;
+}
+meshState& operator--(meshState& state) {
+    int newState = static_cast<int>(state);
+    newState--;
     state = static_cast<meshState>(newState);
     return state;
 }
@@ -286,12 +292,15 @@ void genBuffers(VAOobject& object, const char* verticesPath, const char* indicie
 }
 
 
-void processInput(GLFWwindow* window) {
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+void processInput(GLFWwindow* window/*, std::vector<void* ()> eventQueue*/) {
+    Input::pollKeyboard(window);
+    //for (int i = 0; i < eventQueue.size(); i++) {
+    //    (*eventQueue[i])();
+    //}
+    if (Input::isKeyPressed(GLFW_KEY_ESCAPE)) {
         glfwSetWindowShouldClose(window, true);
     }
-    if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) {
-
+    if (Input::isKeyPressed(GLFW_KEY_R)) {
         if (shape == CROSS) {
             shape = SQUARE;
         }
@@ -299,10 +308,32 @@ void processInput(GLFWwindow* window) {
             ++shape;
         }
     }
+    if (Input::isKeyPressed(GLFW_KEY_T)) {
+        if (shape == SQUARE) {
+            shape = CROSS;
+        }
+        else {
+            --shape;
+        }
+    }
+    
 };
 
 
-class DVDAnimation {
+class Event {
+public:
+    void event() {
+        std::cout << "error: event not found :(" << std::endl;
+    }
+
+    //void (Event::*getFunc())() {
+    //    void (Event::*func)();
+    //    func = &event;
+    //    return func;
+    //}
+};
+
+class DVDAnimation : public Event {
 private:
 
     std::chrono::system_clock::time_point lastTime = std::chrono::system_clock::now();
@@ -310,8 +341,11 @@ private:
     std::chrono::milliseconds elapsed;
     float xPos = 0;
     float yPos = 0;
-
+    
 public:
+    void event() {
+        //do stuff
+    }
 
 };
 
@@ -347,23 +381,23 @@ int main()
 
 
     VAOobject square;
-    genBuffers(square, "squareVertices.mesh", "squareIndices.ind", "square");
+    genBuffers(square, "resources/mesh/squareVertices.mesh", "resources/mesh/squareIndices.ind", "square");
 
     VAOobject hourglass;
-    genBuffers(hourglass, "hourglassVertices.mesh", "hourglassIndices.ind", "hourglass");
+    genBuffers(hourglass, "resources/mesh/hourglassVertices.mesh", "resources/mesh/hourglassIndices.ind", "hourglass");
 
     VAOobject triangle; 
-    genBuffers(triangle, "triangleVertices.mesh", "triangleIndices.ind", "triangle");
+    genBuffers(triangle, "resources/mesh/triangleVertices.mesh", "resources/mesh/triangleIndices.ind", "triangle");
 
     VAOobject cross;
-    genBuffers(cross, "crossVertices.mesh", "crossIndices.ind", "cross");
+    genBuffers(cross, "resources/mesh/crossVertices.mesh", "resources/mesh/crossIndices.ind", "cross");
 
 
     VAOobject vaoObjects[]{ square, hourglass, triangle, cross };//this list should not be hard-coded
 
 
     ShaderObject shaders;
-    constructShaders("vertex.vert", "fragment.frag", shaders);
+    constructShaders("resources/shaders/vertex.vert", "resources/shaders/fragment.frag", shaders);
 
 
     //TODO: shader sets
@@ -394,9 +428,12 @@ int main()
     const float rotationalSpeed = 1.0f;
 
     //we boutta get FANCY
-    std::vector<void* ()> eventQueue;
-    //size_t (VAOobject::*ptrToMemb)() = &VAOobject::getVertSize;
-    //eventQueue.push_back(VAOobject.*ptrToMemb);
+    //std::vector<void* ()> eventQueue; 
+    //
+    //DVDAnimation DVDAnimation;
+    //void(DVDAnimation::*ptrToMemb)() = DVDAnimation.getFunc();
+    //eventQueue.push_back(DVDAnimation.*ptrToMemb);
+
 
     glBindVertexArray((vaoObjects[shape]).vao);
 
@@ -443,8 +480,9 @@ int main()
 
         glfwSwapBuffers(window);
 
-        processInput(window);
+        processInput(window/*,eventQueue*/);
         glfwPollEvents();
+        
         
     }
     

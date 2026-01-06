@@ -130,19 +130,23 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="glad.c" />
+    <ClCompile Include="input.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="crossIndices.ind" />
-    <None Include="crossVertices.mesh" />
-    <None Include="fragment.frag" />
-    <None Include="hourglassIndices.ind" />
-    <None Include="hourglassVertices.mesh" />
-    <None Include="squareIndices.ind" />
-    <None Include="squareVertices.mesh" />
-    <None Include="triangleIndices.ind" />
-    <None Include="triangleVertices.mesh" />
-    <None Include="vertex.vert" />
+    <None Include="resources\mesh\crossIndices.ind" />
+    <None Include="resources\mesh\crossVertices.mesh" />
+    <None Include="resources\shaders\fragment.frag" />
+    <None Include="resources\mesh\hourglassIndices.ind" />
+    <None Include="resources\mesh\hourglassVertices.mesh" />
+    <None Include="resources\mesh\squareIndices.ind" />
+    <None Include="resources\mesh\squareVertices.mesh" />
+    <None Include="resources\mesh\triangleIndices.ind" />
+    <None Include="resources\mesh\triangleVertices.mesh" />
+    <None Include="resources\shaders\vertex.vert" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="input.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
