@@ -13,6 +13,7 @@
 #include <vector>
 #include <chrono>
 #include <cmath>
+#include <functional>
 
 
 #include "input.h"
@@ -292,11 +293,11 @@ void genBuffers(VAOobject& object, const char* verticesPath, const char* indicie
 }
 
 
-void processInput(GLFWwindow* window/*, std::vector<void* ()> eventQueue*/) {
+void processInput(GLFWwindow* window, std::vector < std::function<void(void)> > eventQueue) {
     Input::pollKeyboard(window);
-    //for (int i = 0; i < eventQueue.size(); i++) {
-    //    (*eventQueue[i])();
-    //}
+    for (int i = 0; i < eventQueue.size(); i++) {
+        eventQueue[i]();
+    }
     if (Input::isKeyPressed(GLFW_KEY_ESCAPE)) {
         glfwSetWindowShouldClose(window, true);
     }
@@ -322,32 +323,131 @@ void processInput(GLFWwindow* window/*, std::vector<void* ()> eventQueue*/) {
 
 class Event {
 public:
-    void event() {
+    virtual void event() {
         std::cout << "error: event not found :(" << std::endl;
     }
 
-    //void (Event::*getFunc())() {
-    //    void (Event::*func)();
-    //    func = &event;
-    //    return func;
-    //}
+    virtual std::function<void(void)> getFunc() {
+        return std::bind(&Event::event, this);
+    }
 };
+
 
 class DVDAnimation : public Event {
 private:
 
-    std::chrono::system_clock::time_point lastTime = std::chrono::system_clock::now();
-    std::chrono::system_clock::time_point currentTime = std::chrono::system_clock::now();
-    std::chrono::milliseconds elapsed;
-    float xPos = 0;
-    float yPos = 0;
+    std::chrono::system_clock::time_point lastTime;
+    glm::mat4* transformationMatrix;
+    float xPos;
+    float yPos;
+    bool goingRight;
+    bool goingDown;
+    static float dvdSpeed;
     
 public:
+
+    DVDAnimation(glm::mat4* sharedTransformationMatrix) {
+
+        lastTime = std::chrono::system_clock::now(); //should be a shared resource
+        transformationMatrix = sharedTransformationMatrix;
+        xPos = 0;
+        yPos = 0;
+        goingRight = true;
+        goingDown = true;
+
+    }
+
     void event() {
-        //do stuff
+
+        *transformationMatrix = glm::translate(*transformationMatrix, glm::vec3(dvdSpeed, dvdSpeed, 0.0f));
+
     }
 
 };
+float DVDAnimation::dvdSpeed = 0.01f;
+
+
+class Rotation : public Event {
+private:
+
+    std::chrono::system_clock::time_point lastTime;
+    glm::mat4* transformationMatrix;
+    static float rotationalSpeed;
+
+public:
+
+    Rotation(glm::mat4* sharedTransformationMatrix) {
+
+        lastTime = std::chrono::system_clock::now(); //should be a shared resource
+        transformationMatrix = sharedTransformationMatrix;
+
+    }
+
+    void event() {
+
+        auto currentTime = std::chrono::system_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastTime);
+        lastTime = currentTime;
+
+        if (elapsed.count() >= rotationalSpeed) {
+            *transformationMatrix = glm::rotate(*transformationMatrix, glm::radians(1.0f), glm::vec3(0.0, 0.0, 1.0));
+        }
+
+    }
+
+};
+float Rotation::rotationalSpeed = 1.0f;
+
+
+class sendTransformationMatrix : public Event {
+private:
+
+    glm::mat4* transformationMatrix;
+    static float rotationalSpeed;
+    int uniform_transformationMatrix;
+
+public:
+
+    sendTransformationMatrix(glm::mat4* sharedTransformationMatrix, ShaderObject shaders) {
+        transformationMatrix = sharedTransformationMatrix;
+        uniform_transformationMatrix = glGetUniformLocation(shaders.shaderProgram, "transformationMatrix");
+        glUniformMatrix4fv(uniform_transformationMatrix, 1, GL_FALSE, glm::value_ptr(*transformationMatrix));
+    }
+
+    void event() {
+            glUniformMatrix4fv(uniform_transformationMatrix, 1, GL_FALSE, glm::value_ptr(*transformationMatrix));
+    }
+
+};
+
+
+class FPSCounter : public Event {
+private:
+
+    std::chrono::system_clock::time_point lastTime = std::chrono::system_clock::now();
+    static float fpsPollRate;
+    static bool showFPS;
+
+public:
+
+    void event() {
+
+        auto currentTime = std::chrono::system_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastTime);
+        lastTime = currentTime;
+
+        if (elapsed.count() >= fpsPollRate && showFPS) {
+            std::cout << "fps is:" << (fpsPollRate / (elapsed.count() / 1000.0f)) << std::endl;
+            std::cout << "ms elapsed:" << elapsed.count() << std::endl;
+            lastTime = currentTime;
+        }
+
+    }
+
+};
+float FPSCounter::fpsPollRate = 4000.0f;
+bool FPSCounter::showFPS = false;
+
 
 
 int main()
@@ -418,32 +518,30 @@ int main()
     glUniform1f(uniform_colorSpeed, colorSpeed);
 
 
+    //*slaps hood*
+    //this bad boy can handle so much events
+
+    std::vector<std::function<void(void)>> eventQueue;
+
     glm::mat4 transformationMatrix = glm::mat4(1.0f);
-    int uniform_transformationMatrix = glGetUniformLocation(shaders.shaderProgram, "transformationMatrix");
-    glUniformMatrix4fv(uniform_transformationMatrix, 1, GL_FALSE, glm::value_ptr(transformationMatrix));
 
+    DVDAnimation DVDAnimationObject(&transformationMatrix);
+    eventQueue.push_back(DVDAnimationObject.getFunc());
 
-    const float fpsPollRate = 4000.0f;
+    Rotation rotationObject(&transformationMatrix);
+    eventQueue.push_back(rotationObject.getFunc());
 
-    const float rotationalSpeed = 1.0f;
+    sendTransformationMatrix sendTransformationMatrixObject(&transformationMatrix,shaders);
+    eventQueue.push_back(sendTransformationMatrixObject.getFunc());
 
-    //we boutta get FANCY
-    //std::vector<void* ()> eventQueue; 
-    //
-    //DVDAnimation DVDAnimation;
-    //void(DVDAnimation::*ptrToMemb)() = DVDAnimation.getFunc();
-    //eventQueue.push_back(DVDAnimation.*ptrToMemb);
+    FPSCounter fpsCounterObject;
+    eventQueue.push_back(fpsCounterObject.getFunc());
 
 
     glBindVertexArray((vaoObjects[shape]).vao);
 
     int lastShape = shape; 
-
-    //glfwSetTime(0.0f);
-
-    auto lastTime = std::chrono::system_clock::now();
-
-    bool showFPS = false;
+     
 
     while (!glfwWindowShouldClose(window)) {
 
@@ -456,20 +554,6 @@ int main()
         glUniform1f(uniform_shaderTime, shaderTime);
 
 
-        auto currentTime = std::chrono::system_clock::now();
-        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastTime);
-
-        if (elapsed.count() >= fpsPollRate && showFPS) {
-            std::cout << "fps is:" << (fpsPollRate / (elapsed.count() / 1000.0f)) << std::endl;
-            std::cout << "ms elapsed:" << elapsed.count() << std::endl;
-            lastTime = currentTime;
-        }
-
-        if (elapsed.count() >= rotationalSpeed) {
-            transformationMatrix = glm::rotate(transformationMatrix, glm::radians(1.0f), glm::vec3(0.0, 0.0, 1.0));
-            glUniformMatrix4fv(uniform_transformationMatrix, 1, GL_FALSE, glm::value_ptr(transformationMatrix));
-        }
-
         shaderTime = static_cast<float>(glfwGetTime());
 
 
@@ -480,7 +564,7 @@ int main()
 
         glfwSwapBuffers(window);
 
-        processInput(window/*,eventQueue*/);
+        processInput(window,eventQueue);
         glfwPollEvents();
         
         
