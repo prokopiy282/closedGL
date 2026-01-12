@@ -322,67 +322,69 @@ void processInput(GLFWwindow* window, std::vector < std::function<void(void)> > 
 
 
 class Event {
+protected:
+    std::chrono::system_clock::time_point lastTime;
 public:
     virtual void event() {
         std::cout << "error: event not found :(" << std::endl;
     }
 
     virtual std::function<void(void)> getFunc() {
-        return std::bind(&Event::event, this);
+        //return std::bind(&Event::event, this); 
+        return [this]() {this->event(); };
     }
+
+    
+
 };
 
 
 class DVDAnimation : public Event {
 private:
-
-    std::chrono::system_clock::time_point lastTime;
     glm::mat4* sharedTranslationMatrix;
-    float xPos;
-    float yPos;
-    bool xMovNegative;
-    bool yMovNegative;
+    float xPos = 0.0f;
+    float yPos = 0.0f;
+    float xDir = 1.0f;
+    float yDir = 1.0f;
     static float dvdSpeed;
+    float theWall = 1.0f;
     
 public:
 
-    DVDAnimation(glm::mat4* sharedTranslatioMatrix) {
+    DVDAnimation(glm::mat4* sharedTranslationMatrix) {
 
         lastTime = std::chrono::system_clock::now(); //should be a shared resource
-        this->sharedTranslationMatrix = sharedTranslatioMatrix;
-        xPos = 0.0f;
-        yPos = 0.0f;
-        xMovNegative = true;
-        yMovNegative = true;
+        this->sharedTranslationMatrix = sharedTranslationMatrix;
 
     }
 
     void event() {
 
-        if (abs(xPos) >= 0.5f) { //this number has ALL the magic
-            xMovNegative = !xMovNegative;
+        if (abs(xPos) >= theWall) { //this number has ALL the magic
+            xDir = -xDir;
         }
-        if (abs(yPos) >= 0.5f) {
-            yMovNegative = !yMovNegative;
+        if (abs(yPos) >= theWall) {
+            yDir = -yDir;
         }
         
-        //add elapsed.count()
 
-        xPos += (static_cast<int>(xMovNegative) * (-1)) * dvdSpeed; //evil cast
-        yPos += (static_cast<int>(yMovNegative) * (-1)) * dvdSpeed;
+        auto currentTime = std::chrono::system_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastTime);
+        lastTime = currentTime;
+
+        xPos += xDir * dvdSpeed * elapsed.count(); //evil cast
+        yPos += yDir * dvdSpeed * elapsed.count();
 
         *sharedTranslationMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(xPos, yPos, 0.0f));
 
     }
 
 };
-float DVDAnimation::dvdSpeed = 0.01f;
+float DVDAnimation::dvdSpeed = 0.001f;
 
 
 class Rotation : public Event {
 private:
-
-    std::chrono::system_clock::time_point lastTime;
     glm::mat4* rotationMatrix;
     static float rotationalSpeed;
 
@@ -442,8 +444,6 @@ public:
 
 class FPSCounter : public Event {
 private:
-
-    std::chrono::system_clock::time_point lastTime = std::chrono::system_clock::now();
     static float fpsPollRate;
     static bool showFPS;
 
@@ -478,7 +478,7 @@ int main()
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     constexpr int windowWidth = 640;
-    constexpr int windowHeight = 640;
+    constexpr int windowHeight = 480;
 
     GLFWwindow* window = glfwCreateWindow(windowWidth, windowHeight, "black magic", NULL, NULL);
     if (!window) {
@@ -520,8 +520,12 @@ int main()
 
 
     //TODO: shader sets
-    static int uniform_windowSize = glGetUniformLocation(shaders.shaderProgram, "windowSize");
+    const int uniform_windowSize = glGetUniformLocation(shaders.shaderProgram, "windowSize");
     glUniform2f(uniform_windowSize, windowWidth, windowHeight);
+
+    glm::mat4 projectionMatrix = glm::ortho(0.0f, static_cast<float>(windowWidth), 0.0f, static_cast<float>(windowHeight), 0.1f, 100.0f);
+    const int uniform_projectionMatrix = glGetUniformLocation(shaders.shaderProgram, "projectionMatrix");
+    glUniformMatrix4fv(uniform_projectionMatrix, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
 
     float shaderTime = 0.0f; //TODO: add deltatime. also maybe a 32 bit float is a bit wasteful to store ints
     int uniform_shaderTime = glGetUniformLocation(shaders.shaderProgram, "shaderTime");
@@ -530,7 +534,6 @@ int main()
     const float gammaCorrection = 0.45f; //2.2 gamma my beloved
     int uniform_gammaCorrection = glGetUniformLocation(shaders.shaderProgram, "gammaCorrection");
     glUniform1f(uniform_gammaCorrection, gammaCorrection);
-
 
     const float colorSpeed = 0.5f;
     int uniform_colorSpeed = glGetUniformLocation(shaders.shaderProgram, "colorSpeed");
