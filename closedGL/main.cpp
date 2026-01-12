@@ -337,29 +337,41 @@ class DVDAnimation : public Event {
 private:
 
     std::chrono::system_clock::time_point lastTime;
-    glm::mat4* transformationMatrix;
+    glm::mat4* sharedTranslationMatrix;
     float xPos;
     float yPos;
-    bool goingRight;
-    bool goingDown;
+    bool xMovNegative;
+    bool yMovNegative;
     static float dvdSpeed;
     
 public:
 
-    DVDAnimation(glm::mat4* sharedTransformationMatrix) {
+    DVDAnimation(glm::mat4* sharedTranslatioMatrix) {
 
         lastTime = std::chrono::system_clock::now(); //should be a shared resource
-        transformationMatrix = sharedTransformationMatrix;
-        xPos = 0;
-        yPos = 0;
-        goingRight = true;
-        goingDown = true;
+        this->sharedTranslationMatrix = sharedTranslatioMatrix;
+        xPos = 0.0f;
+        yPos = 0.0f;
+        xMovNegative = true;
+        yMovNegative = true;
 
     }
 
     void event() {
 
-        *transformationMatrix = glm::translate(*transformationMatrix, glm::vec3(dvdSpeed, dvdSpeed, 0.0f));
+        if (abs(xPos) >= 0.5f) { //this number has ALL the magic
+            xMovNegative = !xMovNegative;
+        }
+        if (abs(yPos) >= 0.5f) {
+            yMovNegative = !yMovNegative;
+        }
+        
+        //add elapsed.count()
+
+        xPos += (static_cast<int>(xMovNegative) * (-1)) * dvdSpeed; //evil cast
+        yPos += (static_cast<int>(yMovNegative) * (-1)) * dvdSpeed;
+
+        *sharedTranslationMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(xPos, yPos, 0.0f));
 
     }
 
@@ -371,15 +383,15 @@ class Rotation : public Event {
 private:
 
     std::chrono::system_clock::time_point lastTime;
-    glm::mat4* transformationMatrix;
+    glm::mat4* rotationMatrix;
     static float rotationalSpeed;
 
 public:
 
-    Rotation(glm::mat4* sharedTransformationMatrix) {
+    Rotation(glm::mat4* sharedRotationMatrix) {
 
         lastTime = std::chrono::system_clock::now(); //should be a shared resource
-        transformationMatrix = sharedTransformationMatrix;
+        rotationMatrix = sharedRotationMatrix;
 
     }
 
@@ -390,7 +402,7 @@ public:
         lastTime = currentTime;
 
         if (elapsed.count() >= rotationalSpeed) {
-            *transformationMatrix = glm::rotate(*transformationMatrix, glm::radians(1.0f), glm::vec3(0.0, 0.0, 1.0));
+            *rotationMatrix = glm::rotate(*rotationMatrix, glm::radians(1.0f), glm::vec3(0.0, 0.0, 1.0));
         }
 
     }
@@ -402,20 +414,27 @@ float Rotation::rotationalSpeed = 1.0f;
 class sendTransformationMatrix : public Event {
 private:
 
-    glm::mat4* transformationMatrix;
+    glm::mat4 transformationMatrix;
+    glm::mat4* scalingMatrix;
+    glm::mat4* rotationMatrix;
+    glm::mat4* translationMatrix;
     static float rotationalSpeed;
     int uniform_transformationMatrix;
 
 public:
 
-    sendTransformationMatrix(glm::mat4* sharedTransformationMatrix, ShaderObject shaders) {
-        transformationMatrix = sharedTransformationMatrix;
+    sendTransformationMatrix(glm::mat4* sharedScalingMatrix, glm::mat4* sharedRotationMatrix, glm::mat4* sharedTranslationMatrix, ShaderObject shaders) {
+        scalingMatrix = sharedScalingMatrix;
+        rotationMatrix = sharedRotationMatrix;
+        translationMatrix = sharedTranslationMatrix;
+        transformationMatrix = (*translationMatrix) * (*rotationMatrix) * (*scalingMatrix);
         uniform_transformationMatrix = glGetUniformLocation(shaders.shaderProgram, "transformationMatrix");
-        glUniformMatrix4fv(uniform_transformationMatrix, 1, GL_FALSE, glm::value_ptr(*transformationMatrix));
+        glUniformMatrix4fv(uniform_transformationMatrix, 1, GL_FALSE, glm::value_ptr(transformationMatrix));
     }
 
     void event() {
-            glUniformMatrix4fv(uniform_transformationMatrix, 1, GL_FALSE, glm::value_ptr(*transformationMatrix));
+        transformationMatrix = (*translationMatrix) * (*rotationMatrix) * (*scalingMatrix);
+        glUniformMatrix4fv(uniform_transformationMatrix, 1, GL_FALSE, glm::value_ptr(transformationMatrix));
     }
 
 };
@@ -444,9 +463,9 @@ public:
 
     }
 
-};
+}; //broken
 float FPSCounter::fpsPollRate = 4000.0f;
-bool FPSCounter::showFPS = false;
+bool FPSCounter::showFPS = true;
 
 
 
@@ -524,14 +543,17 @@ int main()
     std::vector<std::function<void(void)>> eventQueue;
 
     glm::mat4 transformationMatrix = glm::mat4(1.0f);
+    glm::mat4 scalingMatrix = glm::mat4(1.0f);
+    glm::mat4 rotationMatrix = glm::mat4(1.0f);
+    glm::mat4 translationMatrix = glm::mat4(1.0f);
 
-    DVDAnimation DVDAnimationObject(&transformationMatrix);
+    DVDAnimation DVDAnimationObject(&translationMatrix);
     eventQueue.push_back(DVDAnimationObject.getFunc());
 
-    Rotation rotationObject(&transformationMatrix);
+    Rotation rotationObject(&rotationMatrix);
     eventQueue.push_back(rotationObject.getFunc());
 
-    sendTransformationMatrix sendTransformationMatrixObject(&transformationMatrix,shaders);
+    sendTransformationMatrix sendTransformationMatrixObject(&scalingMatrix, &rotationMatrix, &translationMatrix, shaders);
     eventQueue.push_back(sendTransformationMatrixObject.getFunc());
 
     FPSCounter fpsCounterObject;
