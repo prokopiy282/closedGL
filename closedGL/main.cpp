@@ -342,8 +342,8 @@ public:
 class DVDAnimation : public Event {
 private:
     glm::mat4* sharedTranslationMatrix;
-    float xPos = 0.0f;
-    float yPos = 0.0f;
+    float xPos = 0.32346f;
+    float yPos = 0.5545f; //screen is square in modelspace
     float xDir = 1.0f;
     float yDir = 1.0f;
     static float dvdSpeed;
@@ -523,9 +523,19 @@ int main()
     const int uniform_windowSize = glGetUniformLocation(shaders.shaderProgram, "windowSize");
     glUniform2f(uniform_windowSize, windowWidth, windowHeight);
 
-    glm::mat4 projectionMatrix = glm::ortho(0.0f, static_cast<float>(windowWidth), 0.0f, static_cast<float>(windowHeight), 0.1f, 100.0f);
+    float aspectRatio = static_cast<float>(windowWidth) / static_cast<float>(windowHeight);
+    glm::mat4 projectionMatrix = glm::ortho(-aspectRatio, aspectRatio, -1.0f, 1.0f, 0.0f, 1.0f);
     const int uniform_projectionMatrix = glGetUniformLocation(shaders.shaderProgram, "projectionMatrix");
     glUniformMatrix4fv(uniform_projectionMatrix, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
+
+    glm::mat4 viewMatrix = glm::lookAt(
+        glm::vec3(0.0f, 0.0f, 1.0f),
+        glm::vec3(0.0f, 0.0f, 0.0f),
+        glm::vec3(0.0f, 1.0f, 0.0f)
+    );
+    const int uniform_viewMatrix = glGetUniformLocation(shaders.shaderProgram, "viewMatrix");
+    glUniformMatrix4fv(uniform_viewMatrix, 1, GL_FALSE, glm::value_ptr(viewMatrix));
+    
 
     float shaderTime = 0.0f; //TODO: add deltatime. also maybe a 32 bit float is a bit wasteful to store ints
     int uniform_shaderTime = glGetUniformLocation(shaders.shaderProgram, "shaderTime");
