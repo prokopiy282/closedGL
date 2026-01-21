@@ -3,6 +3,8 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb/stb_image.h"
 
 
 #include <iostream>
@@ -280,8 +282,10 @@ void genBuffers(VAOobject& object, const char* verticesPath, const char* indicie
     }
 
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL); //vertex coords
     glEnableVertexAttribArray(0);
+    //glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, (3 * sizeof(float)), (void*)(6 * sizeof(float))); //texture coords
+    glEnableVertexAttribArray(1);
     glBindVertexArray(0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -577,6 +581,21 @@ int main()
 
     int lastShape = shape; 
      
+
+
+    //boilest plate
+    int texWidth, texHeight, texNrChannels;
+    unsigned char* texData = stbi_load("container.jpg", &texWidth, &texHeight, &texNrChannels, 0);
+    unsigned int texture;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texWidth, texHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, texData);
+    glGenerateMipmap(GL_TEXTURE_2D);
+    
+
+
+
+
 
     while (!glfwWindowShouldClose(window)) {
 

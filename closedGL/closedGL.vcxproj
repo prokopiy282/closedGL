@@ -148,6 +148,9 @@
   <ItemGroup>
     <ClInclude Include="input.h" />
   </ItemGroup>
+  <ItemGroup>
+    <Image Include="resources\sprites\evilTeto.png" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
