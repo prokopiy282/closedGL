@@ -25,34 +25,23 @@
 //      linear interpolation between figures
 
 
+// 1. delete bloat
+//  1.1 delete all meshes
+//  1.2 leave 1 square full screen size
+// 2. virtual screen buffer (just an array)
+// 3. drawPixel()
+// 4. drawHLine(), drawVLine(), drawCircle()
+// 5. importBitmap()
+// 6. drawBitmap()
+// 7. make this a dependency for pure c
+
+
 #define INT_SIZE 4
 #define FLOAT_SIZE 4
 #define BYTE_ORDER_MARK "\xEF\xBB\xBF"
-
-
-enum meshState {
-    SQUARE,
-    HOURGLASS,
-    TRIANGLE,
-    CROSS
-};
-
-meshState& operator++(meshState& state) {
-    int newState = static_cast<int>(state);
-    newState++;
-    state = static_cast<meshState>(newState);
-    return state;
-}
-meshState& operator--(meshState& state) {
-    int newState = static_cast<int>(state);
-    newState--;
-    state = static_cast<meshState>(newState);
-    return state;
-}
-
-meshState shape = SQUARE;
-
-
+#define PIXEL_SIZE 5
+#define WINDOW_WIDTH PIXEL_SIZE*128
+#define WINDOW_HEIGHT PIXEL_SIZE*64
 
 
 struct ShaderObject {
@@ -84,7 +73,6 @@ std::string getShaderSource(const char* path, const std::string shaderType) {
 
     return shaderString;
 }
-
 
 void constructShaders(const char* vertexPath, const char* fragmentPath, ShaderObject& object) {
 
@@ -205,98 +193,6 @@ void importArray(const char* path, std::vector<dataType>& array, std::string con
 }
 
 
-//warning: only null construct this
-struct VAOobject {
-
-    VAOobject() = default;
-
-    unsigned int vao = 0;
-    unsigned int vbo = 0;
-    unsigned int ebo = 0;
-    unsigned int* vaoPtr = &vao;
-    unsigned int* vboPtr = &vbo;
-    unsigned int* eboPtr = &ebo;
-    std::vector<float> verticesVec;
-    std::vector<unsigned int> indicesVec; //limits max mesh size bcs uint. though the current state of tech probably limits it before that
-
-    size_t getVertSize() {
-        return verticesVec.size() * FLOAT_SIZE;
-    }
-
-    size_t getIndSize() {
-        return indicesVec.size() * INT_SIZE;
-    }
-
-    size_t getIndCount() {
-        return indicesVec.size();
-    }
-
-    float* getVertDumbArray() {
-        return &verticesVec[0]; //cromulent vulnerability 1
-    }
-
-    unsigned int* getIndDumbArray() {
-        return &indicesVec[0]; //cromulent vulnerability 2
-    }
-
-};
-
-
-void genBuffers(VAOobject& object, const char* verticesPath, const char* indiciesPath, const std::string consoleName) { 
-
-    std::cout << "importing " << consoleName << ": " << std::endl;
-
-    importArray(verticesPath, object.verticesVec, "mesh");
-    std::cout << "mesh size: " << object.getVertSize() << std::endl;
-
-    importArray(indiciesPath, object.indicesVec, "indices");
-    std::cout << "indices size: " << object.getIndSize() << std::endl;
-
-    glGenVertexArrays(1, object.vaoPtr);
-    glBindVertexArray(*object.vaoPtr);
-    glEnableVertexAttribArray(0);
-
-    std::cout << "vao int: " << *object.vaoPtr << std::endl;
-    if (glGetError() == GL_NO_ERROR) {
-        std::cout << "vao created without error" << std::endl;
-    }
-
-
-    glGenBuffers(1, object.vboPtr);
-    glBindBuffer(GL_ARRAY_BUFFER, *object.vboPtr);
-    glBufferData(GL_ARRAY_BUFFER, object.getVertSize(), object.getVertDumbArray(), GL_STATIC_DRAW);
-
-    std::cout << "vbo int: " << *object.vboPtr << std::endl;
-    if (glGetError() == GL_NO_ERROR) {
-        std::cout << "vbo created without error" << std::endl;
-    }
-
-
-    glGenBuffers(1, object.eboPtr);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, *object.eboPtr);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, object.getIndSize(), object.getIndDumbArray(), GL_STATIC_DRAW);
-
-    std::cout << "ebo int: " << *object.eboPtr << std::endl;
-    if (glGetError() == GL_NO_ERROR) {
-        std::cout << "ebo created without error" << std::endl;
-    }
-
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL); //vertex coords
-    glEnableVertexAttribArray(0);
-    //glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, (3 * sizeof(float)), (void*)(6 * sizeof(float))); //texture coords
-    glEnableVertexAttribArray(1);
-    glBindVertexArray(0);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-    if (glGetError() == GL_NO_ERROR) {
-        std::cout << "vertex attrips pointed without error" << std::endl;
-    }
-
-}
-
-
 void processInput(GLFWwindow* window, std::vector < std::function<void(void)> > eventQueue) {
     Input::pollKeyboard(window);
     for (int i = 0; i < eventQueue.size(); i++) {
@@ -304,22 +200,6 @@ void processInput(GLFWwindow* window, std::vector < std::function<void(void)> > 
     }
     if (Input::isKeyPressed(GLFW_KEY_ESCAPE)) {
         glfwSetWindowShouldClose(window, true);
-    }
-    if (Input::isKeyPressed(GLFW_KEY_R)) {
-        if (shape == CROSS) {
-            shape = SQUARE;
-        }
-        else {
-            ++shape;
-        }
-    }
-    if (Input::isKeyPressed(GLFW_KEY_T)) {
-        if (shape == SQUARE) {
-            shape = CROSS;
-        }
-        else {
-            --shape;
-        }
     }
     
 };
@@ -334,14 +214,10 @@ public:
     }
 
     virtual std::function<void(void)> getFunc() {
-        //return std::bind(&Event::event, this); 
         return [this]() {this->event(); };
     }
 
-    
-
 };
-
 
 class DVDAnimation : public Event {
 private:
@@ -386,37 +262,6 @@ public:
 };
 float DVDAnimation::dvdSpeed = 0.001f;
 
-
-class Rotation : public Event {
-private:
-    glm::mat4* rotationMatrix;
-    static float rotationalSpeed;
-
-public:
-
-    Rotation(glm::mat4* sharedRotationMatrix) {
-
-        lastTime = std::chrono::system_clock::now(); //should be a shared resource
-        rotationMatrix = sharedRotationMatrix;
-
-    }
-
-    void event() {
-
-        auto currentTime = std::chrono::system_clock::now();
-        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastTime);
-        lastTime = currentTime;
-
-        if (elapsed.count() >= rotationalSpeed) {
-            *rotationMatrix = glm::rotate(*rotationMatrix, glm::radians(1.0f), glm::vec3(0.0, 0.0, 1.0));
-        }
-
-    }
-
-};
-float Rotation::rotationalSpeed = 1.0f;
-
-
 class sendTransformationMatrix : public Event {
 private:
 
@@ -446,32 +291,6 @@ public:
 };
 
 
-class FPSCounter : public Event {
-private:
-    static float fpsPollRate;
-    static bool showFPS;
-
-public:
-
-    void event() {
-
-        auto currentTime = std::chrono::system_clock::now();
-        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastTime);
-        lastTime = currentTime;
-
-        if (elapsed.count() >= fpsPollRate && showFPS) {
-            std::cout << "fps is:" << (fpsPollRate / (elapsed.count() / 1000.0f)) << std::endl;
-            std::cout << "ms elapsed:" << elapsed.count() << std::endl;
-            lastTime = currentTime;
-        }
-
-    }
-
-}; //broken
-float FPSCounter::fpsPollRate = 4000.0f;
-bool FPSCounter::showFPS = true;
-
-
 
 int main()
 {
@@ -481,10 +300,7 @@ int main()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    constexpr int windowWidth = 640;
-    constexpr int windowHeight = 480;
-
-    GLFWwindow* window = glfwCreateWindow(windowWidth, windowHeight, "black magic", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "black magic", NULL, NULL);
     if (!window) {
         std::cout << "window creation broke" << std::endl;
         glfwTerminate();
@@ -500,23 +316,66 @@ int main()
 
 
 
-    glViewport(0, 0, windowWidth, windowHeight);
+    glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
 
 
-    VAOobject square;
-    genBuffers(square, "resources/mesh/squareVertices.mesh", "resources/mesh/squareIndices.ind", "square");
+    const float aspectRatio = static_cast<float>(WINDOW_WIDTH) / static_cast<float>(WINDOW_HEIGHT);
+   
+    const float mesh[] = {
+        -aspectRatio, -1.0f, 0.0f,  0.0f, 0.0f, //bottom left
+        -aspectRatio,  1.0f, 0.0f,  0.0f, 1.0f, //top left
+         aspectRatio,  1.0f, 0.0f,  1.0f, 1.0f, //top right
+         aspectRatio, -1.0f, 0.0f,  1.0f, 0.0f, //bottom right
+    };
 
-    VAOobject hourglass;
-    genBuffers(hourglass, "resources/mesh/hourglassVertices.mesh", "resources/mesh/hourglassIndices.ind", "hourglass");
+    const int ind[]{
+        0, 1, 2,
+        2, 3, 0
+    };
 
-    VAOobject triangle; 
-    genBuffers(triangle, "resources/mesh/triangleVertices.mesh", "resources/mesh/triangleIndices.ind", "triangle");
+    unsigned int vao;
+    glGenVertexArrays(1, &vao);
+    glBindVertexArray(vao);
+    glEnableVertexAttribArray(0);
 
-    VAOobject cross;
-    genBuffers(cross, "resources/mesh/crossVertices.mesh", "resources/mesh/crossIndices.ind", "cross");
+    std::cout << "vao int: " << vao << std::endl;
+    if (glGetError() == GL_NO_ERROR) {
+        std::cout << "vao created without error" << std::endl;
+    }
+
+    unsigned int meshVBO;
+    glGenBuffers(1, &meshVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, meshVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float)*4*5, mesh, GL_STATIC_DRAW);
+
+    std::cout << "vbo int: " << meshVBO << std::endl;
+    if (glGetError() == GL_NO_ERROR) {
+        std::cout << "vbo created without error" << std::endl;
+    }
+
+    unsigned int meshEBO;
+    glGenBuffers(1, &meshEBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshEBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(int)*3*2, ind, GL_STATIC_DRAW);
+
+    std::cout << "ebo int: " << meshEBO << std::endl;
+    if (glGetError() == GL_NO_ERROR) {
+        std::cout << "ebo created without error" << std::endl;
+    }
 
 
-    VAOobject vaoObjects[]{ square, hourglass, triangle, cross };//this list should not be hard-coded
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, (5 * sizeof(float)), NULL); //vertex coords
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, (5 * sizeof(float)), (void*)(3 * sizeof(float))); //texture coords
+    glEnableVertexAttribArray(1);
+    //glBindVertexArray(0);
+    //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    //glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    if (glGetError() == GL_NO_ERROR) {
+        std::cout << "vertex attrips pointed without error" << std::endl;
+    }
+
 
 
     ShaderObject shaders;
@@ -525,9 +384,9 @@ int main()
 
     //TODO: shader sets
     const int uniform_windowSize = glGetUniformLocation(shaders.shaderProgram, "windowSize");
-    glUniform2f(uniform_windowSize, windowWidth, windowHeight);
+    glUniform2f(uniform_windowSize, WINDOW_WIDTH, WINDOW_HEIGHT);
 
-    float aspectRatio = static_cast<float>(windowWidth) / static_cast<float>(windowHeight);
+
     glm::mat4 projectionMatrix = glm::ortho(-aspectRatio, aspectRatio, -1.0f, 1.0f, 0.0f, 1.0f);
     const int uniform_projectionMatrix = glGetUniformLocation(shaders.shaderProgram, "projectionMatrix");
     glUniformMatrix4fv(uniform_projectionMatrix, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
@@ -537,6 +396,7 @@ int main()
         glm::vec3(0.0f, 0.0f, 0.0f),
         glm::vec3(0.0f, 1.0f, 0.0f)
     );
+
     const int uniform_viewMatrix = glGetUniformLocation(shaders.shaderProgram, "viewMatrix");
     glUniformMatrix4fv(uniform_viewMatrix, 1, GL_FALSE, glm::value_ptr(viewMatrix));
     
@@ -564,57 +424,44 @@ int main()
     glm::mat4 rotationMatrix = glm::mat4(1.0f);
     glm::mat4 translationMatrix = glm::mat4(1.0f);
 
-    DVDAnimation DVDAnimationObject(&translationMatrix);
-    eventQueue.push_back(DVDAnimationObject.getFunc());
-
-    Rotation rotationObject(&rotationMatrix);
-    eventQueue.push_back(rotationObject.getFunc());
-
     sendTransformationMatrix sendTransformationMatrixObject(&scalingMatrix, &rotationMatrix, &translationMatrix, shaders);
     eventQueue.push_back(sendTransformationMatrixObject.getFunc());
 
-    FPSCounter fpsCounterObject;
-    eventQueue.push_back(fpsCounterObject.getFunc());
-
-
-    glBindVertexArray((vaoObjects[shape]).vao);
-
-    int lastShape = shape; 
+    glBindVertexArray(vao);
      
-
 
     //boilest plate
     int texWidth, texHeight, texNrChannels;
-    unsigned char* texData = stbi_load("container.jpg", &texWidth, &texHeight, &texNrChannels, 0);
+    stbi_set_flip_vertically_on_load(true);
+    unsigned char* texData = stbi_load("resources/sprites/evilTeto.PNG", &texWidth, &texHeight, &texNrChannels, 0);
     unsigned int texture;
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texWidth, texHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, texData);
     glGenerateMipmap(GL_TEXTURE_2D);
-    
+
+    stbi_image_free(texData);
 
 
-
-
-
+        
     while (!glfwWindowShouldClose(window)) {
 
-        if (lastShape != shape) {//this should be done in poll events
-            lastShape = shape;
-            glBindVertexArray((vaoObjects[shape]).vao);
-        }
 
         shaderTime = static_cast<float>(glfwGetTime());
         glUniform1f(uniform_shaderTime, shaderTime);
 
-
-        shaderTime = static_cast<float>(glfwGetTime());
+        
 
 
         glClearColor(1.0f, 0.5f, 0.5f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        glDrawElements(GL_TRIANGLES, vaoObjects[shape].getIndCount(), GL_UNSIGNED_INT, 0);
+        glBindTexture(GL_TEXTURE_2D, texture);
+        glDrawElements(GL_TRIANGLES, 6 , GL_UNSIGNED_INT, 0);
 
         glfwSwapBuffers(window);
 
