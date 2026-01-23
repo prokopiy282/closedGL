@@ -292,7 +292,8 @@ public:
 
 class DisplayObject : public Event {
 private:
-    char buffer[windowWidth][windowHeight];
+    char buffer[windowWidth][windowHeight][3];
+    char writeBuffer[windowWidth][windowHeight][3];
     unsigned int texturePtr;
 public:
 
@@ -304,18 +305,19 @@ public:
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, displayWidth, displayHeight, 0, GL_RED, GL_UNSIGNED_BYTE, buffer);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, displayWidth, displayHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, buffer);
         glGenerateMipmap(GL_TEXTURE_2D);
+        
     }
 
     void event() {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, displayWidth, displayHeight, 0, GL_RED_INTEGER, GL_UNSIGNED_BYTE, buffer);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, displayWidth, displayHeight, 0, GL_RED_INTEGER, GL_UNSIGNED_BYTE, buffer);
     }
     
     void clearDisplay() {
         for (int x = 0; x < displayWidth; x++) {
             for (int y = 0; x < displayHeight; x++) {
-                buffer[x][y] = 0;
+                drawPixel(x, y, SSD1306_BLACK);
             }
         }
     }
@@ -323,13 +325,15 @@ public:
     void fillDisplay() {
         for (int x = 0; x < displayWidth; x++) {
             for (int y = 0; x < displayHeight; x++) {
-                buffer[x][y] = 1;
+                drawPixel(x, y, SSD1306_WHITE);
             }
         }
     }
 
     void drawPixel(int x, int y, uint16_t color) {
-        buffer[x][y] = color;
+        for (int channel = 0; channel < 3; channel++) {
+            buffer[x][y][channel] = color;
+        }
     }
 
 }; 
@@ -496,7 +500,7 @@ int main()
      
 
 
-    display.drawPixel(64, 32, SSD1306_WHITE);
+    display.drawPixel(67, 32, SSD1306_BLACK);
 
     //loadTeto();
 
