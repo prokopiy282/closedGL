@@ -17,13 +17,7 @@
 #include <cmath>
 #include <functional>
 
-
 #include "input.h"
-
-//todo: move with 2 modes (mouse and kb, tab toggle) 
-//      dvd animation
-//      linear interpolation between figures
-
 
 // 1. delete bloat
 //  1.1 delete all meshes
@@ -39,9 +33,14 @@
 #define INT_SIZE 4
 #define FLOAT_SIZE 4
 #define BYTE_ORDER_MARK "\xEF\xBB\xBF"
-#define PIXEL_SIZE 5
-#define WINDOW_WIDTH PIXEL_SIZE*128
-#define WINDOW_HEIGHT PIXEL_SIZE*64
+#define SSD1306_BLACK 0
+#define SSD1306_WHITE 1
+
+constexpr int pixelSize = 5;
+constexpr int displayWidth = 128;
+constexpr int displayHeight = 64;
+constexpr int windowWidth = pixelSize * displayWidth;
+constexpr int windowHeight = pixelSize * displayHeight;
 
 
 struct ShaderObject {
@@ -291,6 +290,69 @@ public:
 };
 
 
+class DisplayObject : public Event {
+private:
+    char buffer[windowWidth][windowHeight];
+    unsigned int texturePtr;
+public:
+
+    DisplayObject() {
+        clearDisplay();
+        glGenTextures(1, &texturePtr);
+        glBindTexture(GL_TEXTURE_2D, texturePtr);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, displayWidth, displayHeight, 0, GL_RED, GL_UNSIGNED_BYTE, buffer);
+        glGenerateMipmap(GL_TEXTURE_2D);
+    }
+
+    void event() {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, displayWidth, displayHeight, 0, GL_RED_INTEGER, GL_UNSIGNED_BYTE, buffer);
+    }
+    
+    void clearDisplay() {
+        for (int x = 0; x < displayWidth; x++) {
+            for (int y = 0; x < displayHeight; x++) {
+                buffer[x][y] = 0;
+            }
+        }
+    }
+
+    void fillDisplay() {
+        for (int x = 0; x < displayWidth; x++) {
+            for (int y = 0; x < displayHeight; x++) {
+                buffer[x][y] = 1;
+            }
+        }
+    }
+
+    void drawPixel(int x, int y, uint16_t color) {
+        buffer[x][y] = color;
+    }
+
+}; 
+
+//test function
+void loadTeto() {
+    //boilest plate
+    int texWidth, texHeight, texNrChannels;
+    stbi_set_flip_vertically_on_load(true);
+    unsigned char* texData = stbi_load("resources/sprites/evilTeto.PNG", &texWidth, &texHeight, &texNrChannels, 0);
+    unsigned int texture;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texWidth, texHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, texData);
+    glGenerateMipmap(GL_TEXTURE_2D);
+
+    stbi_image_free(texData);
+}
+
 
 int main()
 {
@@ -300,7 +362,7 @@ int main()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow* window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "black magic", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(windowWidth, windowHeight, "black magic", NULL, NULL);
     if (!window) {
         std::cout << "window creation broke" << std::endl;
         glfwTerminate();
@@ -316,10 +378,10 @@ int main()
 
 
 
-    glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+    glViewport(0, 0, windowWidth, windowHeight);
 
 
-    const float aspectRatio = static_cast<float>(WINDOW_WIDTH) / static_cast<float>(WINDOW_HEIGHT);
+    const float aspectRatio = static_cast<float>(windowWidth) / static_cast<float>(windowHeight);
    
     const float mesh[] = {
         -aspectRatio, -1.0f, 0.0f,  0.0f, 0.0f, //bottom left
@@ -384,7 +446,7 @@ int main()
 
     //TODO: shader sets
     const int uniform_windowSize = glGetUniformLocation(shaders.shaderProgram, "windowSize");
-    glUniform2f(uniform_windowSize, WINDOW_WIDTH, WINDOW_HEIGHT);
+    glUniform2f(uniform_windowSize, windowWidth, windowHeight);
 
 
     glm::mat4 projectionMatrix = glm::ortho(-aspectRatio, aspectRatio, -1.0f, 1.0f, 0.0f, 1.0f);
@@ -427,25 +489,16 @@ int main()
     sendTransformationMatrix sendTransformationMatrixObject(&scalingMatrix, &rotationMatrix, &translationMatrix, shaders);
     eventQueue.push_back(sendTransformationMatrixObject.getFunc());
 
+    DisplayObject display;
+    eventQueue.push_back(display.getFunc());
+
     glBindVertexArray(vao);
      
 
-    //boilest plate
-    int texWidth, texHeight, texNrChannels;
-    stbi_set_flip_vertically_on_load(true);
-    unsigned char* texData = stbi_load("resources/sprites/evilTeto.PNG", &texWidth, &texHeight, &texNrChannels, 0);
-    unsigned int texture;
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texWidth, texHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, texData);
-    glGenerateMipmap(GL_TEXTURE_2D);
 
-    stbi_image_free(texData);
+    display.drawPixel(64, 32, SSD1306_WHITE);
 
+    //loadTeto();
 
         
     while (!glfwWindowShouldClose(window)) {
@@ -460,7 +513,7 @@ int main()
         glClearColor(1.0f, 0.5f, 0.5f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        glBindTexture(GL_TEXTURE_2D, texture);
+        //glBindTexture(GL_TEXTURE_2D, texture);
         glDrawElements(GL_TRIANGLES, 6 , GL_UNSIGNED_INT, 0);
 
         glfwSwapBuffers(window);
