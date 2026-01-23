@@ -6,7 +6,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"
 
-
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -36,11 +35,11 @@
 #define SSD1306_BLACK 0
 #define SSD1306_WHITE 1
 
-constexpr int pixelSize = 5;
-constexpr int displayWidth = 128;
-constexpr int displayHeight = 64;
-constexpr int windowWidth = pixelSize * displayWidth;
-constexpr int windowHeight = pixelSize * displayHeight;
+constexpr const int pixelSize = 5;
+constexpr const int displayWidth = 128;
+constexpr const int displayHeight = 64;
+constexpr const int windowWidth = pixelSize * displayWidth;
+constexpr const int windowHeight = pixelSize * displayHeight;
 
 
 struct ShaderObject {
@@ -292,8 +291,9 @@ public:
 
 class DisplayObject : public Event {
 private:
-    char buffer[windowWidth][windowHeight][3];
-    char writeBuffer[windowWidth][windowHeight][3];
+    char* frameBuffer = new char[displayWidth*displayHeight*3];
+    //char* writeBuffer = 
+    
     unsigned int texturePtr;
 public:
 
@@ -305,18 +305,19 @@ public:
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, displayWidth, displayHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, buffer);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, displayWidth, displayHeight, 0, GL_RGB_INTEGER, GL_UNSIGNED_BYTE, frameBuffer);
         glGenerateMipmap(GL_TEXTURE_2D);
         
     }
 
     void event() {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, displayWidth, displayHeight, 0, GL_RED_INTEGER, GL_UNSIGNED_BYTE, buffer);
+        //std::swap(frameBuffer, writeBuffer);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, displayWidth, displayHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, frameBuffer);
     }
     
     void clearDisplay() {
         for (int x = 0; x < displayWidth; x++) {
-            for (int y = 0; x < displayHeight; x++) {
+            for (int y = 0; y < displayHeight; y++) {
                 drawPixel(x, y, SSD1306_BLACK);
             }
         }
@@ -324,7 +325,7 @@ public:
 
     void fillDisplay() {
         for (int x = 0; x < displayWidth; x++) {
-            for (int y = 0; x < displayHeight; x++) {
+            for (int y = 0; y < displayHeight; y++) {
                 drawPixel(x, y, SSD1306_WHITE);
             }
         }
@@ -332,7 +333,7 @@ public:
 
     void drawPixel(int x, int y, uint16_t color) {
         for (int channel = 0; channel < 3; channel++) {
-            buffer[x][y][channel] = color;
+            frameBuffer [(x * displayWidth + y * displayHeight)*3 - channel] = color;
         }
     }
 
