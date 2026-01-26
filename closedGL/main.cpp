@@ -35,7 +35,7 @@
 #define SSD1306_BLACK 0
 #define SSD1306_WHITE 1
 
-constexpr const int pixelSize = 5;
+constexpr const int pixelSize = 10;
 constexpr const int displayWidth = 128;
 constexpr const int displayHeight = 64;
 constexpr const int windowWidth = pixelSize * displayWidth;
@@ -291,7 +291,7 @@ public:
 
 class DisplayObject : public Event {
 private:
-    char* frameBuffer = new char[displayWidth*displayHeight*3];
+    char* frameBuffer = new char[displayWidth*displayHeight*3]; //3 stands for red, green and blue
     //char* writeBuffer = 
     
     unsigned int texturePtr;
@@ -305,14 +305,14 @@ public:
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, displayWidth, displayHeight, 0, GL_RGB_INTEGER, GL_UNSIGNED_BYTE, frameBuffer);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, displayWidth, displayHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, frameBuffer);
         glGenerateMipmap(GL_TEXTURE_2D);
         
     }
 
     void event() {
         //std::swap(frameBuffer, writeBuffer);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, displayWidth, displayHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, frameBuffer);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, displayWidth, displayHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, frameBuffer);
     }
     
     void clearDisplay() {
@@ -333,7 +333,7 @@ public:
 
     void drawPixel(int x, int y, uint16_t color) {
         for (int channel = 0; channel < 3; channel++) {
-            frameBuffer [(x * displayWidth + y * displayHeight)*3 - channel] = color;
+            frameBuffer[ ( ( y * displayWidth + x) * 3 - channel ) ] = color;
         }
     }
 
@@ -501,7 +501,8 @@ int main()
      
 
 
-    display.drawPixel(67, 32, SSD1306_BLACK);
+    display.drawPixel(0, 0, SSD1306_WHITE);
+    display.clearDisplay();
 
     //loadTeto();
 
