@@ -18,10 +18,10 @@
 
 #include "input.h"
 
-// 1. delete bloat
-//  1.1 delete all meshes
-//  1.2 leave 1 square full screen size
-// 2. virtual screen buffer (just an array)
+// 1. delete bloat +
+//  1.1 delete all meshes +
+//  1.2 leave 1 square full screen size +
+// 2. virtual screen buffer (just an array) +
 // 3. drawPixel()
 // 4. drawHLine(), drawVLine(), drawCircle()
 // 5. importBitmap()
@@ -33,7 +33,8 @@
 #define FLOAT_SIZE 4
 #define BYTE_ORDER_MARK "\xEF\xBB\xBF"
 #define SSD1306_BLACK 0
-#define SSD1306_WHITE 1
+#define SSD1306_WHITE 255
+#define CHANNELCOUNT 3
 
 constexpr const int pixelSize = 10;
 constexpr const int displayWidth = 128;
@@ -291,10 +292,10 @@ public:
 
 class DisplayObject : public Event {
 private:
-    char* frameBuffer = new char[displayWidth*displayHeight*3]; //3 stands for red, green and blue
+    char* frameBuffer = new char[displayWidth*displayHeight*CHANNELCOUNT]; 
     //char* writeBuffer = 
-    
     unsigned int texturePtr;
+
 public:
 
     DisplayObject() {
@@ -316,16 +317,16 @@ public:
     }
     
     void clearDisplay() {
-        for (int x = 0; x < displayWidth; x++) {
-            for (int y = 0; y < displayHeight; y++) {
+        for (int y = 0; y < displayHeight; y++) {
+            for (int x = 0; x < displayWidth; x++) {
                 drawPixel(x, y, SSD1306_BLACK);
             }
         }
     }
 
     void fillDisplay() {
-        for (int x = 0; x < displayWidth; x++) {
-            for (int y = 0; y < displayHeight; y++) {
+        for (int y = 0; y < displayHeight; y++) {
+            for (int x = 0; x < displayWidth; x++) {
                 drawPixel(x, y, SSD1306_WHITE);
             }
         }
@@ -333,7 +334,7 @@ public:
 
     void drawPixel(int x, int y, uint16_t color) {
         for (int channel = 0; channel < 3; channel++) {
-            frameBuffer[ ( ( y * displayWidth + x) * 3 - channel ) ] = color;
+            frameBuffer[ ( (y * displayWidth) + x) * 3 + channel ] = color;
         }
     }
 
@@ -500,9 +501,9 @@ int main()
     glBindVertexArray(vao);
      
 
-
-    display.drawPixel(0, 0, SSD1306_WHITE);
     display.clearDisplay();
+    display.drawPixel(25, 10, SSD1306_WHITE);
+    
 
     //loadTeto();
 
