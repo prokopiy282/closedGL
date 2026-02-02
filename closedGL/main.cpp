@@ -22,19 +22,24 @@
 //  1.1 delete all meshes +
 //  1.2 leave 1 square full screen size +
 // 2. virtual screen buffer (just an array) +
-// 3. drawPixel()
+// 3. drawPixel() +!!!!!!
 // 4. drawHLine(), drawVLine(), drawCircle()
 // 5. importBitmap()
 // 6. drawBitmap()
 // 7. make this a dependency for pure c
+
+//how do i change graphics independent from the draw-to-screen loop? mayhaps there should be a different thread?
 
 
 #define INT_SIZE 4
 #define FLOAT_SIZE 4
 #define BYTE_ORDER_MARK "\xEF\xBB\xBF"
 #define SSD1306_BLACK 0
-#define SSD1306_WHITE 255
-#define CHANNELCOUNT 3
+#define SSD1306_WHITE 1
+#define SSD1306_INVERSE 2
+#define CHANNEL_COUNT 3
+#define RGB_WHITE 255
+#define RGB_BLACK 0
 
 constexpr const int pixelSize = 10;
 constexpr const int displayWidth = 128;
@@ -292,7 +297,7 @@ public:
 
 class DisplayObject : public Event {
 private:
-    char* frameBuffer = new char[displayWidth*displayHeight*CHANNELCOUNT]; 
+    char* frameBuffer = new char[displayWidth*displayHeight*CHANNEL_COUNT]; 
     //char* writeBuffer = 
     unsigned int texturePtr;
 
@@ -333,9 +338,35 @@ public:
     }
 
     void drawPixel(int x, int y, uint16_t color) {
-        for (int channel = 0; channel < 3; channel++) {
-            frameBuffer[ ( (y * displayWidth) + x) * 3 + channel ] = color;
+        if ((x >= 0) && (x < displayWidth) && (y >= 0) && (y < displayHeight)) {
+            switch (color) {
+            case SSD1306_WHITE:
+                for (int channel = 0; channel < 3; channel++) {
+                    frameBuffer[((y * displayWidth) + x) * CHANNEL_COUNT + channel] = RGB_WHITE;
+                }
+                break;
+
+            case SSD1306_BLACK:
+                for (int channel = 0; channel < 3; channel++) {
+                    frameBuffer[((y * displayWidth) + x) * CHANNEL_COUNT + channel] = RGB_BLACK;
+                }
+                break;
+
+            case SSD1306_INVERSE:
+                for (int channel = 0; channel < 3; channel++) {
+                    frameBuffer[((y * displayWidth) + x) * CHANNEL_COUNT + channel] = ~frameBuffer[((y * displayWidth) + x) * CHANNEL_COUNT + channel];
+                }
+                break;
+            }
         }
+    }
+
+    int width() {
+        return displayWidth;
+    }
+
+    int height() {
+        return displayHeight;
     }
 
 }; 
@@ -503,6 +534,9 @@ int main()
 
     display.clearDisplay();
     display.drawPixel(25, 10, SSD1306_WHITE);
+    display.drawPixel(5, 10, SSD1306_WHITE);
+    display.drawPixel(34, 15, SSD1306_WHITE);
+    display.drawPixel(35, 15, SSD1306_INVERSE);
     
 
     //loadTeto();
