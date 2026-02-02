@@ -399,8 +399,41 @@ public:
     //funnily enough adafruits gfx lib when doing drawHline and drawVline just uses drawLine (well, writeLine, but we neednt bother), and leaves optimizing HLine and VLine to the specific
     //hardware implementation
 
-    void drawLine(int x0, int y0, int x1, int y1) {
-        //todo: bresenhams
+    void drawLine(int x0, int y0, int x1, int y1,uint16_t color) {
+
+        if (x0 > x1) {
+            std::swap(x0, x1);
+            std::swap(y0, y1);
+        }
+
+        int dx = x1 - x0;
+        int dy = abs(y1 - y0);
+
+        bool moreThanHalfRight = dy > dx;
+
+        int sign =  1;
+        if (y0 > y1) {
+            sign = -1;
+        }
+
+        int error = dy / 2;
+
+        for (; x0 <= x1; x0++) {
+            if (moreThanHalfRight) {
+                drawPixel(y0, x0, color);
+            }
+            else {
+                drawPixel(x0, y0, color);
+            }
+
+            error -= dy;
+
+            if (error < 0) {
+                y0 += sign;
+                error += dx;
+            }
+        }
+
     }
 
 }; 
@@ -571,8 +604,9 @@ int main()
     display.drawPixel(5, 10, SSD1306_WHITE);
     display.drawPixel(34, 15, SSD1306_WHITE);
     display.drawPixel(35, 15, SSD1306_INVERSE);
-    display.drawHLine(20, 34, 25, SSD1306_WHITE);
+    display.drawHLine(20, 34, 70, SSD1306_WHITE);
     display.drawVLine(25, 20, 20, SSD1306_INVERSE);
+    display.drawLine(1, 2, 100, 63, SSD1306_INVERSE);
     display.display();
 
     //loadTeto();
