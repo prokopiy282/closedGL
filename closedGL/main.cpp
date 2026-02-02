@@ -23,7 +23,7 @@
 //  1.2 leave 1 square full screen size +
 // 2. virtual screen buffer (just an array) +
 // 3. drawPixel() +!!!!!!
-// 4. drawHLine(), drawVLine(), drawCircle()
+// 4. drawHLine(), drawVLine(), drawCircle() +-
 // 5. importBitmap()
 // 6. drawBitmap()
 // 7. make this a dependency for pure c
@@ -297,14 +297,35 @@ public:
 
 class DisplayObject : public Event {
 private:
-    char* frameBuffer = new char[displayWidth*displayHeight*CHANNEL_COUNT]; 
-    //char* writeBuffer = 
+    char* frameBuffer = new char[displayWidth * displayHeight * CHANNEL_COUNT]; 
+    bool* unupdatedBuffer = new bool[displayWidth * displayHeight];
     unsigned int texturePtr;
 
 public:
 
     DisplayObject() {
         clearDisplay();
+        display();
+    }
+
+    void display(){
+
+        for (int i = 0; i < displayWidth * displayHeight; i++) { 
+            switch (unupdatedBuffer[i]) {
+            case true:
+                for (int channel = 0; channel < 3; channel++) {
+                    frameBuffer[i * CHANNEL_COUNT + channel] = RGB_WHITE;
+                }
+                break;
+
+            case false:
+                for (int channel = 0; channel < 3; channel++) {
+                    frameBuffer[i * CHANNEL_COUNT + channel] = RGB_BLACK;
+                }
+                break;
+            }
+        }
+
         glGenTextures(1, &texturePtr);
         glBindTexture(GL_TEXTURE_2D, texturePtr);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -313,12 +334,10 @@ public:
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, displayWidth, displayHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, frameBuffer);
         glGenerateMipmap(GL_TEXTURE_2D);
-        
     }
 
     void event() {
-        //std::swap(frameBuffer, writeBuffer);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, displayWidth, displayHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, frameBuffer);
+        //this does not need this anymore
     }
     
     void clearDisplay() {
@@ -341,21 +360,15 @@ public:
         if ((x >= 0) && (x < displayWidth) && (y >= 0) && (y < displayHeight)) {
             switch (color) {
             case SSD1306_WHITE:
-                for (int channel = 0; channel < 3; channel++) {
-                    frameBuffer[((y * displayWidth) + x) * CHANNEL_COUNT + channel] = RGB_WHITE;
-                }
+                unupdatedBuffer[y * displayWidth + x] = true;
                 break;
 
             case SSD1306_BLACK:
-                for (int channel = 0; channel < 3; channel++) {
-                    frameBuffer[((y * displayWidth) + x) * CHANNEL_COUNT + channel] = RGB_BLACK;
-                }
+                unupdatedBuffer[y * displayWidth + x] = false;
                 break;
 
             case SSD1306_INVERSE:
-                for (int channel = 0; channel < 3; channel++) {
-                    frameBuffer[((y * displayWidth) + x) * CHANNEL_COUNT + channel] = ~frameBuffer[((y * displayWidth) + x) * CHANNEL_COUNT + channel];
-                }
+                unupdatedBuffer[y * displayWidth + x] = !(unupdatedBuffer[y * displayWidth + x]);
                 break;
             }
         }
@@ -367,6 +380,27 @@ public:
 
     int height() {
         return displayHeight;
+    }
+    
+
+    //x is leftmost
+    void drawHLine(int x, int y, int w, uint16_t color) {
+        for (; x < x + w; x++,w--) {
+            drawPixel(x, y, color);
+        }
+    }
+    //y is leftmost
+    void drawVLine(int x, int y, int h, uint16_t color) {
+        for (; y < y + h; y++, h--) {
+            drawPixel(x, y, color);
+        }
+    }
+
+    //funnily enough adafruits gfx lib when doing drawHline and drawVline just uses drawLine (well, writeLine, but we neednt bother), and leaves optimizing HLine and VLine to the specific
+    //hardware implementation
+
+    void drawLine(int x0, int y0, int x1, int y1) {
+        //todo: bresenhams
     }
 
 }; 
@@ -537,7 +571,9 @@ int main()
     display.drawPixel(5, 10, SSD1306_WHITE);
     display.drawPixel(34, 15, SSD1306_WHITE);
     display.drawPixel(35, 15, SSD1306_INVERSE);
-    
+    display.drawHLine(20, 34, 25, SSD1306_WHITE);
+    display.drawVLine(25, 20, 20, SSD1306_INVERSE);
+    display.display();
 
     //loadTeto();
 
