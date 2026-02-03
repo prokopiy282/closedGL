@@ -23,7 +23,7 @@
 //  1.2 leave 1 square full screen size +
 // 2. virtual screen buffer (just an array) +
 // 3. drawPixel() +!!!!!!
-// 4. drawHLine(), drawVLine(), drawCircle() +-
+// 4. drawHLine(), drawVLine(), drawCircle() +
 // 5. importBitmap()
 // 6. drawBitmap()
 // 7. make this a dependency for pure c
@@ -294,12 +294,32 @@ public:
 
 };
 
-
 class DisplayObject : public Event {
 private:
     char* frameBuffer = new char[displayWidth * displayHeight * CHANNEL_COUNT]; 
-    bool* unupdatedBuffer = new bool[displayWidth * displayHeight];
+    char* unupdatedBuffer = new char[displayWidth * displayHeight / sizeof(char)];
     unsigned int texturePtr;
+
+    inline void setBit(char& byte, int n, bool value) {
+        if (n < 0 || n > 7) {
+            return;
+        }
+        byte = ((byte & ~((char)1 << n)) | ((char)value << n));
+    }
+
+    inline void inverseBit(char& byte, int n) {
+        if (n < 0 || n > 7) {
+            return;
+        }
+        byte = (byte ^ ((char)1 << n));
+    }
+
+    inline char getBit(char& byte, int n) {
+        if (n < 0 || n > 7) {
+            return 0;
+        }
+        return ((byte >> n) & ((char)1));
+    }
 
 public:
 
@@ -311,7 +331,9 @@ public:
     void display(){
 
         for (int i = 0; i < displayWidth * displayHeight; i++) { 
-            switch (unupdatedBuffer[i]) {
+            int index = i / 8;
+            int bit = i % 8;
+            switch ( getBit( unupdatedBuffer[index] , bit ) ) {
             case true:
                 for (int channel = 0; channel < 3; channel++) {
                     frameBuffer[i * CHANNEL_COUNT + channel] = RGB_WHITE;
@@ -358,17 +380,21 @@ public:
 
     void drawPixel(int x, int y, uint16_t color) {
         if ((x >= 0) && (x < displayWidth) && (y >= 0) && (y < displayHeight)) {
+            int index = (y * displayWidth + x) / 8;
+            int bit = (y * displayWidth + x) % 8;
             switch (color) {
+
             case SSD1306_WHITE:
-                unupdatedBuffer[y * displayWidth + x] = true;
+                
+                setBit(unupdatedBuffer[index], bit, true);
                 break;
 
             case SSD1306_BLACK:
-                unupdatedBuffer[y * displayWidth + x] = false;
+                setBit(unupdatedBuffer[index], bit, false);
                 break;
 
             case SSD1306_INVERSE:
-                unupdatedBuffer[y * displayWidth + x] = !(unupdatedBuffer[y * displayWidth + x]);
+                inverseBit(unupdatedBuffer[index], bit);
                 break;
             }
         }
@@ -382,6 +408,11 @@ public:
         return displayHeight;
     }
     
+    char getPixel(int x, int y) {
+        int index = (y * displayWidth + x) / 8;
+        int bit = (y * displayWidth + x) % 8;
+        return getBit(unupdatedBuffer[index], bit);
+    }
 
     //x is leftmost
     void drawHLine(int x, int y, int w, uint16_t color) {
