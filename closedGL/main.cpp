@@ -24,7 +24,7 @@
 // 2. virtual screen buffer (just an array) +
 // 3. drawPixel() +!!!!!!
 // 4. drawHLine(), drawVLine(), drawCircle() +
-// 5. importBitmap()
+// 5. importBitmap() (from file i suppose?)
 // 6. drawBitmap()
 // 7. make this a dependency for pure c
 
@@ -429,7 +429,6 @@ public:
 
     //funnily enough adafruits gfx lib when doing drawHline and drawVline just uses drawLine (well, writeLine, but we neednt bother), and leaves optimizing HLine and VLine to the specific
     //hardware implementation
-
     void drawLine(int x0, int y0, int x1, int y1,uint16_t color) {
 
         if (x0 > x1) {
@@ -465,6 +464,50 @@ public:
             }
         }
 
+    }
+
+    void drawCircle(int x, int y, int r, uint16_t color) {
+
+    }
+
+    void drawBitmap(int x, int y, const uint8_t bitmap[], int w, int h, uint16_t color) {
+        uint8_t readByte;
+        int wholeByteBitmapWidth = (w + 7) / 8;
+
+        for (int j = 0; j < h; j++) {
+            for (int i = 0; i < w; i++) { //omg i really do just have to learn bit manipulation am'n't i?
+                if ( (i % 8) == 0) {
+                    readByte = bitmap[(j * wholeByteBitmapWidth) + (i / 8)];
+                }
+                else {
+                    readByte <<= 1;
+                }
+
+                if ((readByte & 0b10000000)>0) {
+                    drawPixel(x + i, y + j, color);
+                }
+            }
+        }
+    }
+
+    void drawBitmap(int x, int y, const uint8_t bitmap[], int w, int h, uint16_t color, uint16_t bg) {
+        uint8_t readByte = bitmap[0];
+        int wholeByteBitmapWidth = (w + 7) / 8;
+
+        for (int j = 0; j < h; j++) {
+            for (int i = 0; i < w; i++) { 
+                if ((i % 8) == 0) {
+                    readByte = bitmap[(j * wholeByteBitmapWidth) + (i / 8)];
+                }
+                else {
+                    readByte <<= 1;
+                }
+
+                drawPixel(x + i, y + j, ((readByte & 0b10000000) > 0) ? color : bg); //this fansy is straight outta adafruitGFX
+                
+                
+            }
+        }
     }
 
 }; 
@@ -517,7 +560,7 @@ int main()
 
 
     const float aspectRatio = static_cast<float>(windowWidth) / static_cast<float>(windowHeight);
-   
+
     const float mesh[] = {
         -aspectRatio, -1.0f, 0.0f,  0.0f, 0.0f, //bottom left
         -aspectRatio,  1.0f, 0.0f,  0.0f, 1.0f, //top left
@@ -543,7 +586,7 @@ int main()
     unsigned int meshVBO;
     glGenBuffers(1, &meshVBO);
     glBindBuffer(GL_ARRAY_BUFFER, meshVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float)*4*5, mesh, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 4 * 5, mesh, GL_STATIC_DRAW);
 
     std::cout << "vbo int: " << meshVBO << std::endl;
     if (glGetError() == GL_NO_ERROR) {
@@ -553,7 +596,7 @@ int main()
     unsigned int meshEBO;
     glGenBuffers(1, &meshEBO);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshEBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(int)*3*2, ind, GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(int) * 3 * 2, ind, GL_STATIC_DRAW);
 
     std::cout << "ebo int: " << meshEBO << std::endl;
     if (glGetError() == GL_NO_ERROR) {
@@ -596,7 +639,7 @@ int main()
 
     const int uniform_viewMatrix = glGetUniformLocation(shaders.shaderProgram, "viewMatrix");
     glUniformMatrix4fv(uniform_viewMatrix, 1, GL_FALSE, glm::value_ptr(viewMatrix));
-    
+
 
     float shaderTime = 0.0f; //TODO: add deltatime. also maybe a 32 bit float is a bit wasteful to store ints
     int uniform_shaderTime = glGetUniformLocation(shaders.shaderProgram, "shaderTime");
@@ -628,7 +671,7 @@ int main()
     eventQueue.push_back(display.getFunc());
 
     glBindVertexArray(vao);
-     
+
 
     display.clearDisplay();
     display.drawPixel(25, 10, SSD1306_WHITE);
@@ -638,6 +681,29 @@ int main()
     display.drawHLine(20, 34, 70, SSD1306_WHITE);
     display.drawVLine(25, 20, 20, SSD1306_INVERSE);
     display.drawLine(1, 2, 100, 63, SSD1306_INVERSE);
+
+    const int testBitmapWidth = 15;
+    const int testBitmapHeight = 11;
+    uint8_t testBitmap[ ( (testBitmapWidth + (sizeof(uint8_t) - 1) ) / sizeof(uint8_t) ) * testBitmapHeight]{
+        0b0000000,0b1111000,
+        0b0000000,0b0001110,
+        0b0000111,0b1000011,
+        0b0000111,0b1000011,
+        0b0000000,0b0000110,
+        0b0000000,0b0111100,
+        0b0000000,0b0000110,
+        0b0000111,0b1000011,
+        0b0000111,0b1000011,
+        0b0000000,0b0001110,
+        0b0000000,0b1111000
+    };
+
+    display.drawBitmap(50, 10, testBitmap, testBitmapWidth, testBitmapHeight, SSD1306_WHITE);
+
+    display.drawBitmap(76, 15, testBitmap, testBitmapWidth, testBitmapHeight, SSD1306_WHITE, SSD1306_BLACK);
+
+    display.drawBitmap(80, 22, testBitmap, testBitmapWidth, testBitmapHeight, SSD1306_WHITE, SSD1306_BLACK);
+
     display.display();
 
     //loadTeto();
