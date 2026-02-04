@@ -685,17 +685,17 @@ int main()
     const int testBitmapWidth = 15;
     const int testBitmapHeight = 11;
     uint8_t testBitmap[ ( (testBitmapWidth + (sizeof(uint8_t) - 1) ) / sizeof(uint8_t) ) * testBitmapHeight]{
-        0b0000000,0b1111000,
-        0b0000000,0b0001110,
-        0b0000111,0b1000011,
-        0b0000111,0b1000011,
-        0b0000000,0b0000110,
-        0b0000000,0b0111100,
-        0b0000000,0b0000110,
-        0b0000111,0b1000011,
-        0b0000111,0b1000011,
-        0b0000000,0b0001110,
-        0b0000000,0b1111000
+        0b00000000,0b11110000,
+        0b00000000,0b00011100,
+        0b00000111,0b00000110,
+        0b00000111,0b00000110,
+        0b00000000,0b00001100,
+        0b00000000,0b01111000,
+        0b00000000,0b00001100,
+        0b00000111,0b00000110,
+        0b00000111,0b00000110,
+        0b00000000,0b00011100,
+        0b00000000,0b11110000
     };
 
     display.drawBitmap(50, 10, testBitmap, testBitmapWidth, testBitmapHeight, SSD1306_WHITE);
